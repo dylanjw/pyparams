@@ -110,14 +110,6 @@ print CONF.keys()
 # You can get a dictionary with name/value for each parameter:
 print CONF.items()
 
-A note about boolean parameters:
-
-- If a parameter is defined as 'bool' then it does not take any values on
-  the command line.
-- In the config file or in environment variables you can use 'y', 'yes', '1',
-  'true' to define a true value and 'n', 'no', '0', 'false' to define a false
-  value.
-
 """
 
 version = (0, 1, 0)
@@ -173,6 +165,10 @@ class ParamError(Exception):
         super(ParamError, self).__init__(msg)
 
 
+class ParamIgnored(ParamError):
+    pass
+
+
 class Param(object):
     """
     Information for a single parameter.
@@ -186,13 +182,14 @@ class Param(object):
 
     def __init__(self, name, default=None, allowed_values=None,
                  allowed_range=None, param_type=PARAM_TYPE_STR,
-                 conffile=None, cmd_line=None):
+                 conffile=None, cmd_line=None, ignore=False):
         """
         Configuration for a given parameter.
 
         """
         self.name     = name
         self.conffile = conffile
+        self.ignore   = ignore
 
         if param_type not in _PARAM_TYPES_ALLOWED:
             raise ParamError(name, "Unknown parameter type '%s'." % param_type)
@@ -262,6 +259,10 @@ class Param(object):
         If allowed-values are defined, they take precedence over allowed-range.
 
         """
+        if self.ignore:
+            # No checking of parameter values if this one is marked to
+            # be ignored.
+            return value
         value = self.param_type_check(value)
         if self.allowed_values:
             if not value in self.allowed_values:
@@ -335,7 +336,7 @@ class Conf(object):
         for param_name, param_conf in param_dict.items():
             for k in param_conf.keys():
                 if k not in [ 'default', 'allowed_values', 'allowed_range',
-                              'param_type', 'conffile', 'cmd_line' ]:
+                              'param_type', 'conffile', 'cmd_line', 'ignore' ]:
                     raise ParamError(k, "Invalid parameter config attribute.")
 
             self.add(name=param_name, **param_conf)
@@ -362,6 +363,8 @@ class Conf(object):
             try:
                 param = self.params_by_conffile_name[param_name]
                 self.set(param.name, value)
+            except ParamIgnored:
+                pass
             except ParamError as e:
                 raise ParamError("-Line %d" % (i+1), e.message)
             except KeyError as e:
@@ -450,14 +453,15 @@ class Conf(object):
             param = param_opt_lookup.get(o)
             if not param:
                 raise ParamError(o, "Unknown parameter.")
-            if param.param_type == PARAM_TYPE_BOOL:
-                self.set(param.name, True)
-            else:
-                self.set(param.name, a)
+            if not param.ignore:
+                if param.param_type == PARAM_TYPE_BOOL:
+                    self.set(param.name, True)
+                else:
+                    self.set(param.name, a)
 
     def add(self, name, default=None, allowed_values=None, allowed_range=None,
             param_type=PARAM_TYPE_STR, conffile=__NOT_DEFINED__,
-            cmd_line=__NOT_DEFINED__):
+            cmd_line=__NOT_DEFINED__, ignore=False):
         """
         Add a parameter with fill configuration.
 
@@ -507,7 +511,7 @@ class Conf(object):
 
             self.params[name] = Param(name, default, allowed_values,
                                       allowed_range, param_type, conffile,
-                                      cmd_line)
+                                      cmd_line, ignore)
             if conffile:
                 self.params_by_conffile_name[conffile] = self.params[name]
 
@@ -518,22 +522,32 @@ class Conf(object):
         """
         if name not in self.params:
             raise ParamError(name, "Unknown parameter.")
-        return self.params[name].value
+        param = self.params[name]
+        if param.ignore:
+            raise ParamIgnored(name, "Parameter configured to be ignored.")
+        return param.value
 
     def keys(self):
         """
         Return the name of all parameters.
 
+        Only list names of not-ignored parameters.
+
         """
-        return self.params.keys()
+        return [ pname for pname,param in self.params.items()
+                            if not param.ignore ]
 
     def items(self):
         """
         Return a dictionary with name/value for all parameters.
 
+        Only parameters not configured to be ignored are shown.
+
         """
         return dict(
-                   [ (name, self.params[name].value) for name in self.keys() ]
+                   [ (name, self.params[name].value)
+                            for name in self.keys()
+                                    if not self.params[name].ignore ]
                )
 
     def get_by_conffile_name(self, conffile_name):
@@ -543,7 +557,11 @@ class Conf(object):
         """
         if conffile_name not in self.params_by_conffile_name:
             raise ParamError(conffile_name, "Unknown parameter.")
-        return self.params_by_conffile_name[conffile_name].value
+        param = self.params_by_conffile_name[conffile_name]
+        if param.ignore:
+            raise ParamIgnored(conffile_name,
+                              "Parameter configured to be ignored.")
+        return param.value
 
     def set(self, name, value):
         """
@@ -552,7 +570,10 @@ class Conf(object):
         """
         if name not in self.params:
             raise ParamError(name, "Unknown parameter.")
-        self.params[name].value = self.params[name].validate(value)
+        param = self.params[name]
+        if param.ignore:
+            raise ParamIgnored(name, "Parameter configured to be ignored.")
+        param.value = param.validate(value)
 
     def acquire(self, args, config_filename=None, env_prefix=None,
                 allow_unset_values=None):
@@ -583,9 +604,13 @@ class Conf(object):
             # allowed, all of the parameters need to get a value from
             # somewhere: Default, config file, environment or command line.
             for pname in self.params.keys():
-                if self.get(pname) is None:
-                    raise ParamError(pname,
-                                    "Requires a value, nothing has been set.")
+                try:
+                    value = self.get(pname)
+                    if value is None:
+                        raise ParamError(pname,
+                                        "Requires a value, nothing has been set.")
+                except ParamIgnored:
+                    pass
 
     def dump(self):
         """
@@ -603,7 +628,11 @@ class Conf(object):
             print "    - allowed_values:   %s" % param.allowed_values
             print "    - allowed_range:    %s" % param.allowed_range
             print "    - cmd_line:         %s" % str(param.cmd_line)
-            print "    - current value:    %s" % str(param.value)
+            if param.ignore:
+                print "    - IS IGNORED!"
+            else:
+                print "    - current value:    %s" % str(param.value)
+
 
 
 if __name__ == "__main__":
