@@ -454,7 +454,7 @@ class Conf(object):
             if conffile == __NOT_DEFINED__:
                 # Automatically create the conffile name of the parameter, if
                 # the user left it undefined. We use the name in all caps.
-                conffile = name.upper()
+                conffile = name.upper().replace("-", "_")
 
             self.params[name] = Param(name, default, allowed_values, allowed_range,
                                       param_type, conffile, cmd_line)

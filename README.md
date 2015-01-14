@@ -65,8 +65,9 @@ CONF = Conf(
     #                   variable, by pre-pending the env-prefix to this name.
     #                   If not defined, pyparams will automatically create
     #                   the conffile name for you by capitalizing the parameter
-    #                   name. If you don't want a conffile (and environment
-    #                   variable) equivalent, set this to None.
+    #                   name (and replacing any '-' with '_'). If you don't want
+    #                   a conffile (and environment variable) equivalent, set
+    #                   this to None.
     # - param_type:     The allowed type of the parameter, either
     #                   PARAM_TYPE_STR (the default), PARAM_TYPE_INT or
     #                   PARAM_TYPE_BOOL.
