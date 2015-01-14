@@ -356,14 +356,17 @@ class Conf(object):
 
             elems = line.split()
             if len(elems) != 2:
-                raise ParamError("-Line %d" % i, "Malformed line.")
+                raise ParamError("-Line %d" % (i+1), "Malformed line.")
             param_name, value = elems
 
-            param = self.params_by_conffile_name[param_name]
             try:
+                param = self.params_by_conffile_name[param_name]
                 self.set(param.name, value)
             except ParamError as e:
-                raise ParamError("-Line %d" % i, e.message)
+                raise ParamError("-Line %d" % (i+1), e.message)
+            except KeyError as e:
+                raise ParamError("-Line %d" % (i+1),
+                                 "Unknown parameter '%s'." % param_name)
 
     def _process_config_file(self, fname):
         """
@@ -462,6 +465,7 @@ class Conf(object):
         if 'name' in self.params:
             raise ParamError(name, "Duplicate definition.")
         else:
+            short_opt = long_opt = None
             if cmd_line == __NOT_DEFINED__:
                 # Automatically create the command line short and long option
                 # if the user left it undefined. We use the first letter of
