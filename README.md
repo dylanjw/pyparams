@@ -1,7 +1,15 @@
 # pyparams
-A parameter parsing library for Python, reading command line parameters,
-environment variables and config files.
+A parameter parsing library for Python: One simple to use module to:
 
+- Define your program's parameters.
+- Define each parameter's type, default values and some basic validity
+  checking.
+- Define each parameter's command line option, config file and environment
+  variable equivalent.
+- Sit back, relax: Let pyparams do the parsing of environment variables,
+  config files and command line parameters for you.
+  
+## Overview
 This module uses a single parameter definition to define and initialize
 configuration parameters for a program. Without having to write any additional
 code, it gives you access to parameters for your program, which are taken from
@@ -13,6 +21,10 @@ The parameter values are taken (in that order) from:
     2. a configuration file
     3. environment variables
     4. command line options
+
+## Defining your configuration
+To allow pyparams to read and parse your program's parameters for you, you need
+to define a configuration specification.
 
 A full config definition may look like this. Comments are inserted to explain
 various features:
@@ -126,7 +138,7 @@ A note about config files:
     MY_PARAM   foobar
 
 
-## Sample usage
+## Sample program
 
 ```
 import pyparams
@@ -183,5 +195,17 @@ BAZ 188
 ```
 Then you could run the program without having to specify baz on the command
 line or via environment variable.
+
+
+## Still TODO
+- Support other config file formats.
+- Allow hierarchical config file interpretation, where values are read (and
+  overwritten) from highest level (for example /etc) down to lowest level
+  (for example local directory).
+- Add more parameter types, besides string, integer and boolean, including
+  complex types like dicts and lists.
+- Allow per-parameter definition of environment variable equivalent (or no
+  equivalent at all).
+
 
 
