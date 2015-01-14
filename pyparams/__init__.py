@@ -501,8 +501,6 @@ class Conf(object):
                 else:
                     self._all_long_opts_so_far.append(long_opt)
 
-
-
             self.params[name] = Param(name, default, allowed_values,
                                       allowed_range, param_type, conffile,
                                       cmd_line)
