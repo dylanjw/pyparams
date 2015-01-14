@@ -16,12 +16,11 @@ CONF = pyparams.Conf(
         "baz" : {
             "default"        : None,
             "allowed_range"  : dict(min=1, max=200),
-            "conffile"       : "BAZ",
             "param_type"     : pyparams.PARAM_TYPE_INT,
-            "cmd_line"       : ('b', 'baz')
         },
         "ggg" : {
             "default"        : True,
+            "conffile"       : None,
             "param_type"     : pyparams.PARAM_TYPE_BOOL,
             "cmd_line"       : ('g', None)
         },
@@ -29,6 +28,8 @@ CONF = pyparams.Conf(
 )
 
 CONF.acquire(sys.argv[1:])
+
+CONF.dump()
 
 print CONF.get("foo")
 print CONF.get("baz")

@@ -63,13 +63,20 @@ CONF = Conf(
     # - conffile:       The name of the parameter in the configuration file.
     #                   This is also used to construct the name as environment
     #                   variable, by pre-pending the env-prefix to this name.
+    #                   If not defined, pyparams will automatically create
+    #                   the conffile name for you by capitalizing the parameter
+    #                   name. If you don't want a conffile (and environment
+    #                   variable) equivalent, set this to None.
     # - param_type:     The allowed type of the parameter, either
     #                   PARAM_TYPE_STR (the default), PARAM_TYPE_INT or
     #                   PARAM_TYPE_BOOL.
     # - cmd_line:       A tuple containing the short-option letter and the long-option
     #                   name. Either one can be left None, or the entire
-    #                   cmd_line value can be omitted if no command line
-    #                   options for this parameter are to be used.
+    #                   cmd_line value can be omitted. In that case, pyparams
+    #                   automatically constructs the cmd_line tuple for you,
+    #                   using the first letter (short) and the full name (long)
+    #                   of parameter name. If you don't want to have any command
+    #                   line equivalent for the parameter, set this to None.
     param_dict = {
         "foo" : {
             "default"        : "some-value",
@@ -158,13 +165,12 @@ CONF = pyparams.Conf(
         "baz" : {
             "default"        : None,
             "allowed_range"  : dict(min=1, max=200),
-            "conffile"       : "BAZ",
             "param_type"     : pyparams.PARAM_TYPE_INT,
-            "cmd_line"       : ('b', 'baz')
         },
         "ggg" : {
             "default"        : True,
             "param_type"     : pyparams.PARAM_TYPE_BOOL,
+            "conffile"       : None
             "cmd_line"       : ('g', None)
         },
     }

@@ -129,6 +129,8 @@ PARAM_TYPE_INT         = "integer"
 PARAM_TYPE_BOOL        = "bool"
 _PARAM_TYPES_ALLOWED   = [ PARAM_TYPE_STR, PARAM_TYPE_INT, PARAM_TYPE_BOOL ]
 
+__NOT_DEFINED__        = "__NOT_DEFINED__"
+
 def _bool_check(val):
     """
     Return True or False depending on the boolean equivalent of the value.
@@ -428,7 +430,8 @@ class Conf(object):
                 self.set(param.name, a)
 
     def add(self, name, default=None, allowed_values=None, allowed_range=None,
-            param_type=PARAM_TYPE_STR, conffile=None, cmd_line=None):
+            param_type=PARAM_TYPE_STR, conffile=__NOT_DEFINED__,
+            cmd_line=__NOT_DEFINED__):
         """
         Add a parameter with fill configuration.
 
@@ -436,6 +439,23 @@ class Conf(object):
         if 'name' in self.params:
             raise ParamError(name, "Duplicate definition.")
         else:
+            if cmd_line == __NOT_DEFINED__:
+                # Automatically create the command line short and long option
+                # if the user left it undefined. We use the first letter of
+                # the name for short and the full name for long. If the name
+                # consists of only one letter, we won't define a long option.
+                short_opt = name[0]
+                if len(name) > 1:
+                    long_opt = name
+                else:
+                    long_opt = None
+                cmd_line = (short_opt, long_opt)
+
+            if conffile == __NOT_DEFINED__:
+                # Automatically create the conffile name of the parameter, if
+                # the user left it undefined. We use the name in all caps.
+                conffile = name.upper()
+
             self.params[name] = Param(name, default, allowed_values, allowed_range,
                                       param_type, conffile, cmd_line)
             if conffile:
@@ -516,7 +536,23 @@ class Conf(object):
                 if self.get(pname) is None:
                     raise ParamError(pname, "Requires a value, nothing has been set.")
 
+    def dump(self):
+        """
+        Output the current configuration.
 
+        This is mostly for debugging purposes right now, but something like
+        this should be extended to auto-generate help pages as well.
+
+        """
+        for pname, param in self.params.items():
+            print "* %s" % pname
+            print "    - default:          %s" % param.default
+            print "    - conffile:         %s" % param.conffile
+            print "    - type:             %s" % param.param_type
+            print "    - allowed_values:   %s" % param.allowed_values
+            print "    - allowed_range:    %s" % param.allowed_range
+            print "    - cmd_line:         %s" % str(param.cmd_line)
+            print "    - current value:    %s" % str(param.value)
 
 
 if __name__ == "__main__":
@@ -534,21 +570,16 @@ if __name__ == "__main__":
             "action" : {
                 "default"        : "full",
                 "allowed_values" : [ 'full', 'test', 'partial' ],
-                "conffile"       : "ACTION",
-                "cmd_line"       : ('a', 'action')
             },
             "region" : {
                "default"         : "east",
                "allowed_values"  : [ "west", "east", "north", "south" ],
                "conffile"        : "REGION_SPEC",
-               "cmd_line"        : ('r', 'region')
             },
             "quantity"  : {
                 "default"        : 123,
-                "conffile"       : "QUANTITY",
                 "allowed_range"  : dict(min=1, max=200),
                 "param_type"     : PARAM_TYPE_INT,
-                "cmd_line"       : ( 'q', 'quantity' )
             },
             "enable" : {
                 "default"        : None,
