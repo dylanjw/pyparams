@@ -39,21 +39,30 @@ CONF = Conf(
     # key in the dictionary) as well as a specification dictionary. The spec
     # dictionary can contain the following values (some are optional):
     #
-    # - default:        The default value for the parameter, or None (no default
-    #                   defined).
+    # - default:        The default value for the parameter, or None (no
+    #                   default defined).
     # - allowed_values: A list of pemissible values for this parameter.
     # - allowed_range:  A dictionary containing a min and max value for the
     #                   parameter.
     # - conffile:       The name of the parameter in the configuration file.
     #                   This is also used to construct the name as environment
     #                   variable, by pre-pending the env-prefix to this name.
+    #                   If not defined, pyparams will automatically create
+    #                   the conffile name for you by capitalizing the parameter
+    #                   name (and replacing any '-' with '_'). If you don't
+    #                   want a conffile (and environment variable) equivalent,
+    #                   set this to None.
     # - param_type:     The allowed type of the parameter, either
     #                   PARAM_TYPE_STR (the default), PARAM_TYPE_INT or
     #                   PARAM_TYPE_BOOL.
-    # - cmd_line:       A tuple containing the short-option letter and the long-option
-    #                   name. Either one can be left None, or the entire
-    #                   cmd_line value can be omitted if no command line
-    #                   options for this parameter are to be used.
+    # - cmd_line:       A tuple containing the short-option letter and the
+    #                   lon-option name. Either one can be left None, or the
+    #                   entire cmd_line value can be omitted. In the latter
+    #                   case, pyparams automatically constructs the cmd_line
+    #                   tuple for you, using the first letter (short) and the
+    #                   full name (long) of the parameter name. If you don't
+    #                   want to have any command line equivalent for the
+    #                   parameter, set this to None.
     param_dict = {
         "foo" : {
             "default"        : "some-value",
@@ -64,7 +73,6 @@ CONF = Conf(
         "baz" : {
             "default"        : 123,
             "allowed_range"  : dict(min=1, max=200),
-            "conffile"       : "BAZ",
             "param_type"     : param.PARAM_TYPE_INT,
         },
         "ggg" : {
@@ -194,25 +202,27 @@ class Param(object):
         if param_type == PARAM_TYPE_BOOL:
             if allowed_values or allowed_range:
                 raise ParamError(name,
-                                 "Allowed values or range not allowed for boolean.")
+                         "Allowed values or range not allowed for boolean.")
 
         # Type check all values in 'allowed-values' list
         if allowed_values:
-            self.allowed_values = [ self.param_type_check(a) for a in allowed_values ]
+            self.allowed_values = [ self.param_type_check(a) for a in
+                                                            allowed_values ]
         else:
             self.allowed_values = None
 
         # Sanity check the min-max values in allowed-range.
         if allowed_range:
             if len(allowed_range.keys()) != 2  or \
-                      'min' not in allowed_range  or  'max' not in allowed_range:
-                raise ParamError(name, "Malformed dictionary for 'allowed_range'.")
+                    'min' not in allowed_range  or  'max' not in allowed_range:
+                raise ParamError(name,
+                                   "Malformed dictionary for 'allowed_range'.")
             if self.param_type_check(allowed_range['min']) and \
-                                         self.param_type_check(allowed_range['max']):
+                                 self.param_type_check(allowed_range['max']):
                 self.allowed_range = allowed_range
             else:
                 raise ParamError(name,
-                                 "Values in allowed-range not of permitted type.")
+                             "Values in allowed-range not of permitted type.")
         else:
             self.allowed_range = None
 
@@ -225,21 +235,24 @@ class Param(object):
 
         if cmd_line:
             if len(cmd_line) != 2  or  (cmd_line[0] and len(cmd_line[0]) != 1):
-                raise ParamError(name, "Invalid command line option specification.")
+                raise ParamError(name,
+                                 "Invalid command line option specification.")
 
         self.cmd_line = cmd_line
 
     def param_type_check(self, value):
         """
-        Convert the value to the specified type, raise exception if not possible.
+        Convert the value to the specified type, raise exception if not
+        possible.
 
         """
         if value is not None:
             try:
                 return self.PARAM_TYPE_CHECK_FUNCS[self.param_type](value)
             except:
-                raise ParamError(self.name, "Cannot convert '%s' to type '%s'." % \
-                                                           (value, self.param_type))
+                raise ParamError(self.name,
+                                 "Cannot convert '%s' to type '%s'." % \
+                                                    (value, self.param_type))
         return None
 
     def validate(self, value):
@@ -252,12 +265,14 @@ class Param(object):
         value = self.param_type_check(value)
         if self.allowed_values:
             if not value in self.allowed_values:
-                raise ParamError(self.name, "'%s' is not one of the allowed values."
-                                                                        % value)
+                raise ParamError(self.name,
+                                 "'%s' is not one of the allowed values."
+                                                                    % value)
         if self.allowed_range:
-            if not ( self.allowed_range['min'] <= value <= self.allowed_range['max'] ):
-                raise ParamError(self.name, "'%s' is not in the allowed range."
-                                                                        % value)
+            if not ( self.allowed_range['min'] \
+                            <= value <= self.allowed_range['max'] ):
+                raise ParamError(self.name,
+                                 "'%s' is not in the allowed range." % value)
 
         return value
 
@@ -284,8 +299,10 @@ class Param(object):
             opt_indicators = ( ":", "=" )
         else:
             opt_indicators = ( "", "" )
-        return (self.cmd_line[0]+opt_indicators[0] if self.cmd_line[0] else None,
-                self.cmd_line[1]+opt_indicators[1] if self.cmd_line[1] else None)
+        return (self.cmd_line[0]+opt_indicators[0]
+                                        if self.cmd_line[0] else None,
+                self.cmd_line[1]+opt_indicators[1]
+                                        if self.cmd_line[1] else None)
 
 
 class Conf(object):
@@ -352,17 +369,18 @@ class Conf(object):
         if not fname:
             # Search for config file at default locations
             for fname in [ prefix+self.default_conf_file_name for prefix
-                                                in self.default_conf_file_locations ]:
+                                        in self.default_conf_file_locations ]:
                 try:
                     with open(fname, "r") as f:
                         self._parse_config_file(f)
                 except IOError as e:
                     if "No such file" in e.strerror:
-                        # Quietly ignore failures to find the file. Not having a config
-                        # file is allowed.
+                        # Quietly ignore failures to find the file. Not having
+                        # a config file is allowed.
                         pass
                     else:
-                        raise ParamError(fname, "Error processing config file.")
+                        raise ParamError(fname,
+                                         "Error processing config file.")
         else:
             with open(fname, "r") as f:
                 self._parse_config_file(f)
@@ -376,7 +394,8 @@ class Conf(object):
         in front of the environment variable name.
 
         For example, if the conffile name is MY_VAR and we define an env_prefix
-        of "FOO_", then the environment variable we are looking for is FOO_MY_VAR.
+        of "FOO_", then the environment variable we are looking for is
+        FOO_MY_VAR.
 
         """
         env_prefix = env_prefix or self.default_env_prefix
@@ -456,8 +475,9 @@ class Conf(object):
                 # the user left it undefined. We use the name in all caps.
                 conffile = name.upper().replace("-", "_")
 
-            self.params[name] = Param(name, default, allowed_values, allowed_range,
-                                      param_type, conffile, cmd_line)
+            self.params[name] = Param(name, default, allowed_values,
+                                      allowed_range, param_type, conffile,
+                                      cmd_line)
             if conffile:
                 if conffile in self.params_by_conffile_name:
                     raise ParamError(conffile, "Duplicate definition.")
@@ -484,7 +504,9 @@ class Conf(object):
         Return a dictionary with name/value for all parameters.
 
         """
-        return dict([ (name, self.params[name].value) for name in self.keys() ])
+        return dict(
+                   [ (name, self.params[name].value) for name in self.keys() ]
+               )
 
     def get_by_conffile_name(self, conffile_name):
         """
@@ -529,12 +551,13 @@ class Conf(object):
             allow_unset_values = self.default_allow_unset_values
 
         if not allow_unset_values:
-            # Check if any of our parameters are set to None. This is NOT allowed,
-            # all of the parameters need to get a value from somewhere: Default,
-            # config file, environment or command line.
+            # Check if any of our parameters are set to None. This is NOT
+            # allowed, all of the parameters need to get a value from
+            # somewhere: Default, config file, environment or command line.
             for pname in self.params.keys():
                 if self.get(pname) is None:
-                    raise ParamError(pname, "Requires a value, nothing has been set.")
+                    raise ParamError(pname,
+                                    "Requires a value, nothing has been set.")
 
     def dump(self):
         """

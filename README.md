@@ -55,8 +55,8 @@ CONF = Conf(
     # key in the dictionary) as well as a specification dictionary. The spec
     # dictionary can contain the following values (some are optional):
     #
-    # - default:        The default value for the parameter, or None (no default
-    #                   defined).
+    # - default:        The default value for the parameter, or None (no
+    #                   default defined).
     # - allowed_values: A list of pemissible values for this parameter.
     # - allowed_range:  A dictionary containing a min and max value for the
     #                   parameter.
@@ -65,19 +65,20 @@ CONF = Conf(
     #                   variable, by pre-pending the env-prefix to this name.
     #                   If not defined, pyparams will automatically create
     #                   the conffile name for you by capitalizing the parameter
-    #                   name (and replacing any '-' with '_'). If you don't want
-    #                   a conffile (and environment variable) equivalent, set
-    #                   this to None.
+    #                   name (and replacing any '-' with '_'). If you don't
+    #                   want a conffile (and environment variable) equivalent,
+    #                   set this to None.
     # - param_type:     The allowed type of the parameter, either
     #                   PARAM_TYPE_STR (the default), PARAM_TYPE_INT or
     #                   PARAM_TYPE_BOOL.
-    # - cmd_line:       A tuple containing the short-option letter and the long-option
-    #                   name. Either one can be left None, or the entire
-    #                   cmd_line value can be omitted. In that case, pyparams
-    #                   automatically constructs the cmd_line tuple for you,
-    #                   using the first letter (short) and the full name (long)
-    #                   of parameter name. If you don't want to have any command
-    #                   line equivalent for the parameter, set this to None.
+    # - cmd_line:       A tuple containing the short-option letter and the
+    #                   lon-option name. Either one can be left None, or the
+    #                   entire cmd_line value can be omitted. In the latter
+    #                   case, pyparams automatically constructs the cmd_line
+    #                   tuple for you, using the first letter (short) and the
+    #                   full name (long) of the parameter name. If you don't
+    #                   want to have any command line equivalent for the
+    #                   parameter, set this to None.
     param_dict = {
         "foo" : {
             "default"        : "some-value",
@@ -88,7 +89,6 @@ CONF = Conf(
         "baz" : {
             "default"        : 123,
             "allowed_range"  : dict(min=1, max=200),
-            "conffile"       : "BAZ",
             "param_type"     : param.PARAM_TYPE_INT,
         },
         "ggg" : {
