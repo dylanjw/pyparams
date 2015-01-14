@@ -329,11 +329,15 @@ class Conf(object):
 
         self.default_env_prefix          = default_env_prefix or ""
 
+        self._all_short_opts_so_far      = list()
+        self._all_long_opts_so_far       = list()
+
         for param_name, param_conf in param_dict.items():
             for k in param_conf.keys():
                 if k not in [ 'default', 'allowed_values', 'allowed_range',
                               'param_type', 'conffile', 'cmd_line' ]:
                     raise ParamError(k, "Invalid parameter config attribute.")
+
             self.add(name=param_name, **param_conf)
 
     def _parse_config_file(self, f):
@@ -469,18 +473,40 @@ class Conf(object):
                 else:
                     long_opt = None
                 cmd_line = (short_opt, long_opt)
+            elif cmd_line:
+                short_opt, long_opt = cmd_line
 
             if conffile == __NOT_DEFINED__:
                 # Automatically create the conffile name of the parameter, if
                 # the user left it undefined. We use the name in all caps.
                 conffile = name.upper().replace("-", "_")
 
+            if conffile:
+                if conffile in self.params_by_conffile_name:
+                    raise ParamError(conffile, "Duplicate definition.")
+
+            if short_opt:
+                if short_opt in self._all_short_opts_so_far:
+                    raise ParamError(name,
+                                     "Short option '-%s' already in use." %
+                                                                     short_opt)
+                else:
+                    self._all_short_opts_so_far.append(short_opt)
+
+            if long_opt:
+                if long_opt in self._all_long_opts_so_far:
+                    raise ParamError(name,
+                                     "Long option '--%s' already in use." %
+                                                                     long_opt)
+                else:
+                    self._all_long_opts_so_far.append(long_opt)
+
+
+
             self.params[name] = Param(name, default, allowed_values,
                                       allowed_range, param_type, conffile,
                                       cmd_line)
             if conffile:
-                if conffile in self.params_by_conffile_name:
-                    raise ParamError(conffile, "Duplicate definition.")
                 self.params_by_conffile_name[conffile] = self.params[name]
 
     def get(self, name):
