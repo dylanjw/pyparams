@@ -29,46 +29,28 @@ CONF = Conf(
     # the environment variable is the defined prefix plus the 'conffile'
     # portion of the parameter specification (see below). By default, there
     # is no prefix defined.
-    default_env_prefix         = "MYPROJECT_"
+    default_env_prefix         = "MYPROJECT_",
 
     # Specify whether we allow values to remain unset. Note that a defition
     # of None for the default value just means that no default was provided.
     default_allow_unset_values = True,
 
+    # Specify the order of sections for the automatically generated man-page
+    # like output. When specifying a doc-spec for a parameter, you can specify
+    # a section in which the parameters should be grouped. If no order is
+    # specified, those sections are output in alphabetical order.
+    doc_section_order = [ "Generic", "Example section" ],
+
     # Specify the actual parameters. For each parameter we define a name (the
     # key in the dictionary) as well as a specification dictionary. The spec
-    # dictionary can contain the following values (some are optional):
-    #
-    # - default:        The default value for the parameter, or None (no
-    #                   default defined).
-    # - allowed_values: A list of pemissible values for this parameter.
-    # - allowed_range:  A dictionary containing a min and max value for the
-    #                   parameter.
-    # - conffile:       The name of the parameter in the configuration file.
-    #                   This is also used to construct the name as environment
-    #                   variable, by pre-pending the env-prefix to this name.
-    #                   If not defined, pyparams will automatically create
-    #                   the conffile name for you by capitalizing the parameter
-    #                   name (and replacing any '-' with '_'). If you don't
-    #                   want a conffile (and environment variable) equivalent,
-    #                   set this to None.
-    # - param_type:     The allowed type of the parameter, either
-    #                   PARAM_TYPE_STR (the default), PARAM_TYPE_INT or
-    #                   PARAM_TYPE_BOOL.
-    # - cmd_line:       A tuple containing the short-option letter and the
-    #                   lon-option name. Either one can be left None, or the
-    #                   entire cmd_line value can be omitted. In the latter
-    #                   case, pyparams automatically constructs the cmd_line
-    #                   tuple for you, using the first letter (short) and the
-    #                   full name (long) of the parameter name. If you don't
-    #                   want to have any command line equivalent for the
-    #                   parameter, set this to None.
+    # dictionary can contain the values shown in the Params() docstring.
     param_dict = {
         "foo" : {
             "default"        : "some-value",
             "allowed_values" : [ 'some-value', 'something-else', 'foobar' ],
             "conffile"       : "MY_PARAM",
             "cmd_line"       : ('f', 'some-param')
+            "doc_spec"       : pyparams.ParamDoc(text="
         },
         "baz" : {
             "default"        : 123,
@@ -118,6 +100,7 @@ __version__ = '.'.join(map(str, version))
 import os
 import sys
 import getopt
+import textwrap
 
 #
 # Define all the configuration variables, which can be specified on the command
@@ -182,14 +165,61 @@ class Param(object):
 
     def __init__(self, name, default=None, allowed_values=None,
                  allowed_range=None, param_type=PARAM_TYPE_STR,
-                 conffile=None, cmd_line=None, ignore=False):
+                 conffile=None, cmd_line=None, ignore=False,
+                 doc_spec=None):
         """
         Configuration for a given parameter.
 
+        - name:             The name of the parameter, which can be used for
+                            get()/set().
+        - default:          The default value for this parameter. If this is set to
+                            None, then no default value is set.
+        - allowed_values:   A list of permissible values. When a value is set,
+                            it is checked that it is contained in this list.
+                            Leave as None if no such list should be checked
+                            against.
+        - allowed_range:    A dict with a 'min' and 'max' value. The assigned
+                            value needs to be within this range. Leave as None
+                            if no such range should be checked against.
+        - param_type:       Indicate the type of the parameter. This module
+                            defines the possible types in PARAM_TYPE_STR,
+                            PARAM_TYPE_INT and PARAM_TYPE_BOOL. It will be
+                            string by default.
+        - conffile:         The name that this parameter should have in the
+                            configuration file. If omitted, this name is
+                            constructed automatically by capitalizing the
+                            parameter name and replacing all '-' with '_'. If
+                            set to None, then no config file equivalent for the
+                            parameter is defined. The same name is used as the
+                            environment variable equivalent, except that the
+                            'default_env_prefix' (a Conf parameter) is
+                            pre-pended to the name.
+        - cmd_line:         The definition of the command line equivalent for
+                            this parameter. It consists of a tuple, containing
+                            the short (one-letter) and long command line
+                            parameter name. If omitted, it will be
+                            auto-generated by using the first character of the
+                            parameter name as the short form and the name
+                            itself as the long form. If set to None, then no
+                            command line equivalent is defined. You can also
+                            just set the short or the long form to None, if you
+                            only wish to define one of the command line
+                            equivalen forms.
+        - ignore:           If set, the parameter is not validated and any
+                            assignment (set) or access (get) results in an
+                            exception, while any occurence of the parameter in
+                            the config file, environment or command line is
+                            ignored.
+        - doc_spec:         A documentation specification for this parameter,
+                            so that man-page suitable output can be generated
+                            automatically. This value is a dictionary with the
+                            three keys 'text', 'section' and 'argname'.
+
         """
-        self.name     = name
-        self.conffile = conffile
-        self.ignore   = ignore
+        self.name        = name
+        self.conffile    = conffile
+        self.ignore      = ignore
+        self.doc_spec    = doc_spec
 
         if param_type not in _PARAM_TYPES_ALLOWED:
             raise ParamError(name, "Unknown parameter type '%s'." % param_type)
@@ -305,6 +335,54 @@ class Param(object):
                 self.cmd_line[1]+opt_indicators[1]
                                         if self.cmd_line[1] else None)
 
+    def doc(self):
+        """
+        Return a string suitable for inclusion in a man page.
+
+        This returns a tuple consisting of the section name and the parameter
+        specific string.
+
+        """
+        # If no doc-spec was define, create a quick default spec
+        dspec = self.doc_spec
+        if not dspec:
+            dspec = { "text" : "", "section" : None, "argname" : "" }
+
+        # We don't have a parameter name in the case of boolean flags
+        if self.param_type == PARAM_TYPE_BOOL:
+            argname = ""
+        else:
+            argname = dspec.get('argname')
+            if not argname:
+                argname = "val"
+
+        # Assemble the cmd-line option description
+        s = list()
+        if self.cmd_line:
+            short_opt, long_opt = self.cmd_line
+            if short_opt:
+                s.append("-%s" % short_opt)
+                if argname:
+                    s.append(" <%s>" % argname)
+                if long_opt:
+                    s.append(", ")
+            if long_opt:
+                s.append("--%s" % long_opt)
+                if argname:
+                    s.append("=<%s>" % argname)
+            if s:
+                text = dspec.get('text')
+                if text:
+                    s.append("\n%s\n" % '\n'.join(textwrap.wrap(text,
+                                                    initial_indent="    ",
+                                                    subsequent_indent="    ")))
+                else:
+                    s.append("\n")
+                if self.conffile:
+                    s.append("    Conf file equivalent: %s\n" % self.conffile)
+
+        return (dspec.get('section'), ''.join(s))
+
 
 class Conf(object):
     """
@@ -317,9 +395,48 @@ class Conf(object):
     """
     def __init__(self, param_dict=dict(), default_conf_file_name=None,
                  default_conf_file_locations=[ "", "~/", "/etc/" ],
-                 default_env_prefix=None, default_allow_unset_values=False):
+                 default_env_prefix=None, default_allow_unset_values=False,
+                 doc_section_order=None):
         """
         Initialize the configuration object.
+
+        - param_dict:                  A dictionary containing the parameter
+                                       definitions. The format of this
+                                       dictionary is show in this file's
+                                       docstring and various sample programs
+        - default_conf_file_name:      The name of the configuration file that
+                                       we will look for. This is just the
+                                       filename, not a full path. This value can
+                                       be overwritten in the acquire() call.
+        - default_conf_file_locations: List of directories, which will be
+                                       search (first to last) to look for the
+                                       config file. Once it is found it is
+                                       processed, no further directories are
+                                       searched after that. This value can be
+                                       overwritten in the acquire() call.
+        - default_env_prefix:          A project or program specific prefix you
+                                       can define, which is attached to the
+                                       'conffile' name of each parameter in
+                                       order to derive the environment variable
+                                       name equivalent. By default, no prefix
+                                       is set.
+        - default_allow_unset_values:  If set to True, the configuration will
+                                       NOT check whether after an acquire()
+                                       there remain any unset values.
+                                       Otherwise, the configuration object will
+                                       perform such a test and will throw an
+                                       exception if any of the parameters
+                                       remaines without a value after defaults,
+                                       config files, environment variables and
+                                       command line options are evaluated. By
+                                       default, the test is peformed.
+        - doc_section_order:           Define the order in which the various
+                                       sections of your parameter docs are
+                                       printed when calling make_docs().
+                                       Provide the list of section names in the
+                                       order in which you want them printed. If
+                                       omitted, sections are printed in
+                                       alphabetical order.
 
         """
         self.params                      = dict()
@@ -327,8 +444,8 @@ class Conf(object):
         self.default_allow_unset_values  = default_allow_unset_values
         self.default_conf_file_name      = default_conf_file_name
         self.default_conf_file_locations = default_conf_file_locations
-
         self.default_env_prefix          = default_env_prefix or ""
+        self.doc_section_order           = doc_section_order
 
         self._all_short_opts_so_far      = list()
         self._all_long_opts_so_far       = list()
@@ -336,7 +453,8 @@ class Conf(object):
         for param_name, param_conf in param_dict.items():
             for k in param_conf.keys():
                 if k not in [ 'default', 'allowed_values', 'allowed_range',
-                              'param_type', 'conffile', 'cmd_line', 'ignore' ]:
+                              'param_type', 'conffile', 'cmd_line', 'ignore',
+                              'doc_spec']:
                     raise ParamError(k, "Invalid parameter config attribute.")
 
             self.add(name=param_name, **param_conf)
@@ -463,7 +581,7 @@ class Conf(object):
 
     def add(self, name, default=None, allowed_values=None, allowed_range=None,
             param_type=PARAM_TYPE_STR, conffile=__NOT_DEFINED__,
-            cmd_line=__NOT_DEFINED__, ignore=False):
+            cmd_line=__NOT_DEFINED__, ignore=False, doc_spec=None):
         """
         Add a parameter with fill configuration.
 
@@ -513,7 +631,7 @@ class Conf(object):
 
             self.params[name] = Param(name, default, allowed_values,
                                       allowed_range, param_type, conffile,
-                                      cmd_line, ignore)
+                                      cmd_line, ignore, doc_spec)
             if conffile:
                 self.params_by_conffile_name[conffile] = self.params[name]
 
@@ -638,6 +756,44 @@ class Conf(object):
             else:
                 print "    - current value:    %s" % str(param.value)
 
+
+    def make_doc(self):
+        """
+        Create output suitable for man page.
+
+        This produces a string suitable for the 'OPTIONS' portion of a man
+        page, or 'usage' page.
+
+        """
+        sections = dict()
+        out      = list()
+
+        # Assemble the parameter lists for each section.
+        for pname, param in self.params.items():
+            sec, txt = param.doc()
+            sections.setdefault(sec, list()).append(txt)
+
+        # Alphabetically sort the list of parameters in each section.
+        for param_list in sections.values():
+            param_list.sort()
+
+        # Sort the section order, or use the explicitly specified one.
+        if self.doc_section_order:
+            snames = self.doc_section_order
+        else:
+            snames = sections.keys()
+            snames.sort()
+
+        # Output for each section. Each parameter output line is indented.
+        for sname in snames:
+            param_txts = sections[sname]
+            if sname:
+                out.append("%s:" % sname)
+            for t in param_txts:
+                for l in t.split("\n"):
+                    out.append("    %s" % l)
+
+        print '\n'.join(out)
 
 
 if __name__ == "__main__":
