@@ -387,6 +387,8 @@ class Param(object):
                                                     subsequent_indent="    ")))
                 else:
                     s.append("\n")
+                if self.default:
+                    s.append("    Default value: %s\n" % self.default)
                 if self.conffile:
                     s.append("    Conf file equivalent: %s\n" % self.conffile)
 
