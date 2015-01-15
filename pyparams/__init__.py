@@ -566,7 +566,13 @@ class Conf(object):
             full_var_name = env_prefix+var_name
             value = os.environ.get(full_var_name)
             if value is not None:
-                self.set(param.name, value)
+                try:
+                    self.set(param.name, value)
+                except ParamIgnored:
+                    pass
+                except ParamError as e:
+                    raise ParamError("-Environment variable %s" % full_var_name,
+                                      e.message)
 
     def _process_cmd_line(self, args):
         """
