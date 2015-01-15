@@ -382,9 +382,22 @@ class Param(object):
             if s:
                 text = dspec.get('text')
                 if text:
-                    s.append("\n%s\n" % '\n'.join(textwrap.wrap(text,
-                                                    initial_indent="    ",
-                                                    subsequent_indent="    ")))
+                    # We want the ability to format our text a little, so we
+                    # allow the user to define blocks with \n in the text.
+                    for t in text.split("\n"):
+                        initial_indent = "    "
+                        subsequent_indent = "    "
+                        # Do some extra indent for text blocks that start with
+                        # a '*', so that we can have nicely formatted bulleted
+                        # lists.
+                        if t.startswith("*"):
+                            initial_indent += ""
+                            subsequent_indent += "  "
+                        s.append("\n%s" % '\n'.join(textwrap.wrap(t,
+                                                initial_indent=initial_indent,
+                                                replace_whitespace=False,
+                                                subsequent_indent=subsequent_indent)))
+                    s.append("\n")
                 else:
                     s.append("\n")
                 if self.default:
@@ -775,7 +788,7 @@ class Conf(object):
                 print "    - current value:    %s" % str(param.value)
 
 
-    def make_doc(self):
+    def make_doc(self, indent=0):
         """
         Create output suitable for man page.
 
@@ -783,6 +796,7 @@ class Conf(object):
         page, or 'usage' page.
 
         """
+        istr     = indent*" "
         sections = dict()
         out      = list()
 
@@ -809,10 +823,10 @@ class Conf(object):
         for sname in snames:
             param_txts = sections[sname]
             if sname:
-                out.append("%s:" % sname)
+                out.append("%s%s:" % (istr, sname))
             for t in param_txts:
                 for l in t.split("\n"):
-                    out.append("    %s" % l)
+                    out.append("%s    %s" % (istr,l))
         return '\n'.join(out)
 
 
