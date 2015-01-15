@@ -50,17 +50,26 @@ CONF = Conf(
             "allowed_values" : [ 'some-value', 'something-else', 'foobar' ],
             "conffile"       : "MY_PARAM",
             "cmd_line"       : ('f', 'some-param')
-            "doc_spec"       : pyparams.ParamDoc(text="
+            "doc_spec"       : { 'text'    : "The description string here is "
+                                             "long and will automatically be"
+                                             "wrapped across multiple lines.",
+                                 'section' : "General",
+                                 'argname' : "the foo value" }
         },
         "baz" : {
             "default"        : 123,
             "allowed_range"  : dict(min=1, max=200),
             "param_type"     : param.PARAM_TYPE_INT,
+            "doc_spec"       : { 'text'    : "Amount of baz gizmos to add.",
+                                 'section' : "Specific parameters",
+                                 'argname' : "num" }
         },
         "ggg" : {
             "default"        : None,
             "param_type"     : param.PARAM_TYPE_BOOL,
             "cmd_line"       : ('g', None)
+            "doc_spec"       : { 'text'    : "Flag control run of foobar.",
+                                 'section' : "General" }
         },
     }
 )
@@ -172,8 +181,8 @@ class Param(object):
 
         - name:             The name of the parameter, which can be used for
                             get()/set().
-        - default:          The default value for this parameter. If this is set to
-                            None, then no default value is set.
+        - default:          The default value for this parameter. If this is
+                            set to None, then no default value is set.
         - allowed_values:   A list of permissible values. When a value is set,
                             it is checked that it is contained in this list.
                             Leave as None if no such list should be checked
@@ -406,8 +415,9 @@ class Conf(object):
                                        docstring and various sample programs
         - default_conf_file_name:      The name of the configuration file that
                                        we will look for. This is just the
-                                       filename, not a full path. This value can
-                                       be overwritten in the acquire() call.
+                                       filename, not a full path. This value
+                                       can can be overwritten in the acquire()
+                                       call.
         - default_conf_file_locations: List of directories, which will be
                                        search (first to last) to look for the
                                        config file. Once it is found it is
