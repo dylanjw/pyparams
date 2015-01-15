@@ -382,6 +382,7 @@ class Conf(object):
                                         in self.default_conf_file_locations ]:
                 try:
                     with open(fname, "r") as f:
+                        self.config_file = fname
                         self._parse_config_file(f)
                 except IOError as e:
                     if "No such file" in e.strerror:
@@ -393,6 +394,7 @@ class Conf(object):
                                          "Error processing config file.")
         else:
             with open(fname, "r") as f:
+                self.config_file = fname
                 self._parse_config_file(f)
 
     def _process_env_vars(self, env_prefix=None):
@@ -590,6 +592,9 @@ class Conf(object):
 
         If a config-file name is specified then this overrides the default
         config file name of the config object.
+
+        As a side effect, the actually read config file name/path is attached
+        to the config object in the 'config_file' attribute.
 
         """
         self._process_config_file(config_filename)
