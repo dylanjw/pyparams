@@ -71,6 +71,6 @@ print "-----------------------------"
 # Output the automatically generated documentation for the parameters. This is
 # meant to be suitable for a man page or usage page.
 #
-CONF.make_doc()
+print CONF.make_doc()
 
 

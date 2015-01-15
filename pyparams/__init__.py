@@ -392,7 +392,13 @@ class Param(object):
                 if self.conffile:
                     s.append("    Conf file equivalent: %s\n" % self.conffile)
 
-        return (dspec.get('section'), ''.join(s))
+            return (dspec.get('section'), ''.join(s))
+        else:
+            # No doc provided if there are no command line parameters.
+            # We might change that in the future, once we decide how to print
+            # parameters that only exist in the config file or the environment
+            # variables.
+            return None, None
 
 
 class Conf(object):
@@ -783,18 +789,21 @@ class Conf(object):
         # Assemble the parameter lists for each section.
         for pname, param in self.params.items():
             sec, txt = param.doc()
-            sections.setdefault(sec, list()).append(txt)
+            if txt:
+                sections.setdefault(sec, list()).append(txt)
 
         # Alphabetically sort the list of parameters in each section.
+        # Ignore case.
         for param_list in sections.values():
-            param_list.sort()
+            param_list.sort(key=lambda k: k.lower())
 
         # Sort the section order, or use the explicitly specified one.
+        # Ignore case.
         if self.doc_section_order:
             snames = self.doc_section_order
         else:
             snames = sections.keys()
-            snames.sort()
+            snames.sort(key=lambda k: k.lower())
 
         # Output for each section. Each parameter output line is indented.
         for sname in snames:
@@ -804,8 +813,7 @@ class Conf(object):
             for t in param_txts:
                 for l in t.split("\n"):
                     out.append("    %s" % l)
-
-        print '\n'.join(out)
+        return '\n'.join(out)
 
 
 if __name__ == "__main__":
