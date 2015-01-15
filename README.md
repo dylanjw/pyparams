@@ -145,6 +145,16 @@ A note about config files:
 
     MY_PARAM   foobar
 
+A note about ignored parameters:
+
+- You can add an 'ignore' flag (set it to True) to an individual parameter's
+  definition.
+- An ignored parameter can appear in the config file, environment variables
+  or the command line, but will not be assigned or checked for validity.
+- This is useful if you dynamically need to enable parameters, but don't
+  wish to change your environment variables, scripts or config file for
+  every case.
+
 
 ## Sample program
 
