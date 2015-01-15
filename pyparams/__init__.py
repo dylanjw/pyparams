@@ -827,7 +827,7 @@ class Conf(object):
             for t in param_txts:
                 for l in t.split("\n"):
                     out.append("%s    %s" % (istr,l))
-        return '\n'.join(out)
+        return '\n'.join(out).rstrip()
 
 
 if __name__ == "__main__":
