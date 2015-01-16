@@ -393,10 +393,12 @@ class Param(object):
                         if t.startswith("*"):
                             initial_indent += ""
                             subsequent_indent += "  "
-                        s.append("\n%s" % '\n'.join(textwrap.wrap(t,
-                                                initial_indent=initial_indent,
-                                                replace_whitespace=False,
-                                                subsequent_indent=subsequent_indent)))
+                        s.append("\n%s" % '\n'.join(
+                                    textwrap.wrap(
+                                        t, width=65,
+                                        initial_indent=initial_indent,
+                                        replace_whitespace=False,
+                                        subsequent_indent=subsequent_indent)))
                     s.append("\n")
                 else:
                     s.append("\n")
@@ -571,7 +573,8 @@ class Conf(object):
                 except ParamIgnored:
                     pass
                 except ParamError as e:
-                    raise ParamError("-Environment variable %s" % full_var_name,
+                    raise ParamError("-Environment variable %s" % \
+                                                               full_var_name,
                                       e.message)
 
     def _process_cmd_line(self, args):
@@ -768,7 +771,7 @@ class Conf(object):
                     value = self.get(pname)
                     if value is None:
                         raise ParamError(pname,
-                                        "Requires a value, nothing has been set.")
+                                    "Requires a value, nothing has been set.")
                 except ParamIgnored:
                     pass
 
