@@ -119,9 +119,12 @@ import textwrap
 PARAM_TYPE_STR         = "string"
 PARAM_TYPE_INT         = "integer"
 PARAM_TYPE_BOOL        = "bool"
-_PARAM_TYPES_ALLOWED   = [ PARAM_TYPE_STR, PARAM_TYPE_INT, PARAM_TYPE_BOOL ]
+PARAM_TYPE_STR_LIST    = "str-list"
+_PARAM_TYPES_ALLOWED   = [ PARAM_TYPE_STR, PARAM_TYPE_INT, PARAM_TYPE_BOOL,
+                           PARAM_TYPE_STR_LIST ]
 
 __NOT_DEFINED__        = "__NOT_DEFINED__"
+
 
 def _bool_check(val):
     """
@@ -142,6 +145,26 @@ def _bool_check(val):
         if val in [ "n", "no", "false", "0" ]:
             return False
     raise ParamError(str(val), "Cannot be translated to boolean value.")
+
+
+def _str_list_check(val):
+    """
+    Return a list, if the value string is properly formatted and can
+    be translated to a list.
+
+    Acceptable format: "foo,bar,baz"
+
+    If the value is already a string, just return that.
+
+    Raises exception if problems.
+
+    """
+    if type(val) is list:
+        return val
+    try:
+        return [ str(e).strip() for e in val.split(",") ]
+    except:
+        raise ParamError(str(val), "Malformed list format.")
 
 
 class ParamError(Exception):
@@ -167,9 +190,10 @@ class Param(object):
 
     """
     PARAM_TYPE_CHECK_FUNCS = {
-        PARAM_TYPE_STR  : str,
-        PARAM_TYPE_INT  : int,
-        PARAM_TYPE_BOOL : _bool_check
+        PARAM_TYPE_STR      : str,
+        PARAM_TYPE_INT      : int,
+        PARAM_TYPE_BOOL     : _bool_check,
+        PARAM_TYPE_STR_LIST : _str_list_check
     }
 
     def __init__(self, name, default=None, allowed_values=None,
@@ -302,18 +326,30 @@ class Param(object):
             # No checking of parameter values if this one is marked to
             # be ignored.
             return value
-        value = self.param_type_check(value)
-        if self.allowed_values:
-            if not value in self.allowed_values:
-                raise ParamError(self.name,
-                                 "'%s' is not one of the allowed values."
-                                                                    % value)
-        if self.allowed_range:
-            if not ( self.allowed_range['min'] \
-                            <= value <= self.allowed_range['max'] ):
-                raise ParamError(self.name,
-                                 "'%s' is not in the allowed range." % value)
 
+        value = self.param_type_check(value)
+
+        # If we have allowed range or value set then this test needs to be
+        # applied to all elements of a list parameter. If our parameter is not
+        # a list, we quickly put it in a single-element list, so we can just
+        # use the same code for all types of parameters.
+        if self.param_type is PARAM_TYPE_STR_LIST:
+            value_list = value
+        else:
+            value_list = [ value ]
+
+        for v in value_list:
+            if self.allowed_values:
+                if not v in self.allowed_values:
+                    raise ParamError(self.name,
+                                     "'%s' is not one of the allowed values."
+                                                                    % v)
+            if self.allowed_range:
+                if not ( self.allowed_range['min'] \
+                                <= v <= self.allowed_range['max'] ):
+                    raise ParamError(self.name,
+                                     "'%s' is not in the allowed range."
+                                                                     % v)
         return value
 
     def make_getopts_str(self):

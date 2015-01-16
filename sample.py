@@ -14,10 +14,11 @@ CONF = pyparams.Conf(
             "conffile"       : "MY_PARAM",
             "cmd_line"       : ('f', 'some-param'),
             "doc_spec"       : { 'text'    : "Set the foo parameter, "
-                                             "which is a really important one. "
-                                             "The description string here is "
-                                             "really long and will automatically "
-                                             "be wrapped across multiple lines.",
+                                             "which is a really important "
+                                             "one. The description string "
+                                             "here is really long and will "
+                                             "automatically be wrapped across "
+                                             "multiple lines.",
                                  'section' : "General",
                                  'argname' : "the foo value" }
         },
@@ -25,7 +26,8 @@ CONF = pyparams.Conf(
             "default"        : None,
             "allowed_range"  : dict(min=1, max=200),
             "param_type"     : pyparams.PARAM_TYPE_INT,
-            "doc_spec"       : { 'text'    : "The amount of baz gizmos to be added.",
+            "doc_spec"       : { 'text'    : "The amount of baz gizmos to be "
+                                             "added.",
                                  'section' : "Specific parameters",
                                  'argname' : "num" }
         },
@@ -34,9 +36,14 @@ CONF = pyparams.Conf(
             "conffile"       : None,
             "param_type"     : pyparams.PARAM_TYPE_BOOL,
             "cmd_line"       : ('g', None),
-            "doc_spec"       : { 'text'    : "Flag to control the running of foobar.",
+            "doc_spec"       : { 'text'    : "Flag to control the running "
+                                             "of foobar.",
                                  'section' : "General" }
         },
+        "lll" : {
+            "default"        : "Peter,Tom,Sally,Alice,Bob",
+            "param_type"     : pyparams.PARAM_TYPE_STR_LIST,
+        }
     }
 )
 
@@ -57,14 +64,41 @@ CONF.dump()
 # that violates some value restrictions.
 #
 print "-----------------------------"
+print "@@@ Printing foo and baz."
 print CONF.get("foo")
 print CONF.get("baz")
 try:
+    print "@@@ Trying to set baz to invalid value."
     CONF.set("baz", 456)
 except pyparams.ParamError:
-    print "Correctly caught exception for invalid value."
+    print "@@@ Correctly caught exception for invalid value."
+print "@@@ Setting baz."
 CONF.set("baz", 199)
-print CONF.get("baz")
+print "@@@ Baz: ", CONF.get("baz")
+print "@@@ Setting lll (a list)."
+try:
+    CONF.set("lll", 123)
+except pyparams.ParamError:
+    print "@@@ Correctly caught exception for invalid value."
+CONF.set("lll", "xyz")
+print "@@@ Setting baz."
+print "@@@ Printing lll."
+print CONF.get("lll")
+if CONF.get("lll") != [ "xyz" ]:
+    print "@@@ ERROR! Should be list with single element!"
+CONF.set("lll", [ "a", "b" ])
+print CONF.get("lll")
+if CONF.get("lll") != [ "a", "b" ]:
+    print "@@@ ERROR! Should be list with two elements 'a' and 'b'!"
+CONF.set("lll", "x,y" )
+print CONF.get("lll")
+if CONF.get("lll") != [ "x", "y" ]:
+    print "@@@ ERROR! Should be list with two elements 'x' and 'y'!"
+CONF.set("lll", ",x,y," )
+print CONF.get("lll")
+if CONF.get("lll") != [ "", "x", "y", "" ]:
+    print "@@@ ERROR! Should be list with four elements '', 'x', 'y', ''!"
+print
 print "-----------------------------"
 
 #
