@@ -96,6 +96,10 @@ CONF = Conf(
             "param_type"     : param.PARAM_TYPE_BOOL,
             "cmd_line"       : ('g', None)
         },
+        "lll" : {
+            "default"        : "Peter,Tom,Sally,Alice,Bob",
+            "param_type"     : pyparams.PARAM_TYPE_STR_LIST,
+        }
     }
 )
 
@@ -155,8 +159,15 @@ A note about ignored parameters:
   wish to change your environment variables, scripts or config file for
   every case.
 
+A note about lists:
 
-## Sample program
+- Lists are specified as a single string, with each element in the list
+  separated by a comma.
+- If allowed_values or allowed_range is defined then each element of the list
+  needs to pass this validation test.
+
+
+# Sample program
 
 ```
 import pyparams
@@ -214,15 +225,21 @@ Then you could run the program without having to specify baz on the command
 line or via environment variable.
 
 
-## Still TODO
+# Tests
+
+To run the set of unit tests, simply execute:
+```
+python test.py
+```
+
+# Still TODO
+
 - Support other config file formats.
 - Allow hierarchical config file interpretation, where values are read (and
   overwritten) from highest level (for example /etc) down to lowest level
   (for example local directory).
-- Add more parameter types, besides string, integer and boolean, including
-  complex types like dicts and lists.
 - Allow per-parameter definition of environment variable equivalent (or no
   equivalent at all).
-
+- Add a dict type.
 
 

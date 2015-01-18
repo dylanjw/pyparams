@@ -243,7 +243,7 @@ class _Param(object):
                             command line equivalent is defined. You can also
                             just set the short or the long form to None, if you
                             only wish to define one of the command line
-                            equivalen forms.
+                            equivalent forms.
         - ignore:           If set, the parameter is not validated and any
                             assignment (set) or access (get) results in an
                             exception, while any occurence of the parameter in
@@ -291,12 +291,9 @@ class _Param(object):
                     'min' not in allowed_range  or  'max' not in allowed_range:
                 raise ParamError(name,
                                    "Malformed dictionary for 'allowed_range'.")
-            if self.param_type_check(allowed_range['min']) and \
-                                 self.param_type_check(allowed_range['max']):
-                self.allowed_range = allowed_range
-            else:
-                raise ParamError(name,
-                             "Values in allowed-range not of permitted type.")
+            self.param_type_check(allowed_range['min'])
+            self.param_type_check(allowed_range['max'])
+            self.allowed_range = allowed_range
         else:
             self.allowed_range = None
 
