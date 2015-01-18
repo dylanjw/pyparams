@@ -167,8 +167,7 @@ A note about lists:
   needs to pass this validation test.
 
 
-# Sample program
-
+## Sample program
 ```
 import pyparams
 
@@ -225,15 +224,13 @@ Then you could run the program without having to specify baz on the command
 line or via environment variable.
 
 
-# Tests
-
+## Tests
 To run the set of unit tests, simply execute:
 ```
 python test.py
 ```
 
-# Still TODO
-
+## Still TODO
 - Support other config file formats.
 - Allow hierarchical config file interpretation, where values are read (and
   overwritten) from highest level (for example /etc) down to lowest level
