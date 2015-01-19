@@ -1,7 +1,8 @@
 import os
-import tempfile
-import unittest
 import shutil
+import tempfile
+import StringIO
+import unittest
 
 from pyparams import ( _bool_check,
                        _str_list_check,
@@ -304,7 +305,8 @@ class ConfigClassTests(unittest.TestCase):
     Tests for the Config class.
 
     """
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """
         Create a full config with a number of parameters.
 
@@ -312,17 +314,17 @@ class ConfigClassTests(unittest.TestCase):
 
         """
         # Create a small temporary directory hierarchy
-        self.dir_one_name = tempfile.mkdtemp()
-        self.dir_two_name = tempfile.mkdtemp(dir=self.dir_one_name)
+        cls.dir_one_name = tempfile.mkdtemp()
+        cls.dir_two_name = tempfile.mkdtemp(dir=cls.dir_one_name)
 
-        self.sample_param_dict = {
+        cls.sample_param_dict = {
         "foo" : {
             "default"        : "some-value",
             "allowed_values" : [ 'some-value', 'something-else', 'foobar' ],
             "conffile"       : "MY_PARAM",
             "cmd_line"       : ('f', 'some-param'),
             "doc_spec"       : { 'text'    : "The description string here is "
-                                             "long and will automatically be"
+                                             "long and will automatically be "
                                              "wrapped across multiple lines.",
                                  'section' : "General",
                                  'argname' : "the foo value" }
@@ -344,12 +346,13 @@ class ConfigClassTests(unittest.TestCase):
         },
         }
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(cls):
         """
         Removing the temporary directories.
 
         """
-        shutil.rmtree(self.dir_one_name)
+        shutil.rmtree(cls.dir_one_name)
 
     def _make_conf(self, *args, **kwargs):
         return Conf(*args, **kwargs)
@@ -436,6 +439,223 @@ class ConfigClassTests(unittest.TestCase):
         conf.set('baz',40)
         self.assertEqual(conf.get('baz'), 40)
 
+    def test_conf_doc_creation(self):
+        """
+        Test that the automatically generated doc for the configuration
+        is correct.
+
+        """
+        conf = Conf(self.sample_param_dict)
+        out = conf.make_doc()
+        should =("General:\n"
+                 "    -f <the foo value>, --some-param=<the foo value>\n"
+                 "        The description string here is long and will "
+                 "automatically be\n"
+                 "        wrapped across multiple lines.\n"
+                 "        Default value: some-value\n"
+                 "        Conf file equivalent: MY_PARAM\n"
+                 "    \n"
+                 "    -g\n"
+                 "        Flag control run of foobar.\n"
+                 "        Conf file equivalent: GGG\n"
+                 "    \n"
+                 "Specific parameters:\n"
+                 "    -b <num>, --baz=<num>\n"
+                 "        Amount of baz gizmos to add.\n"
+                 "        Default value: 123\n"
+                 "        Conf file equivalent: BAZ")
+        self.assertEqual(out, should)
+
+    def test_conf_add_param(self):
+        """
+        Testing manual addition of parameter to existing config.
+
+        """
+        conf = Conf(self.sample_param_dict)
+
+        # Not allowing duplicate names for parameters.
+        self.assertRaisesRegexp(ParamError,
+                                "Duplicate definition.",
+                                conf.add, "foo")
+
+        # Catching already existing command line options.
+        self.assertRaisesRegexp(ParamError,
+                                "Short option '-f' already in use.",
+                                conf.add,
+                                **{ "name" : "ttt",
+                                    "cmd_line" : ( 'f', None ) })
+        self.assertRaisesRegexp(ParamError,
+                                "Long option '--some-param' already in use.",
+                                conf.add,
+                                **{ "name" : "ttt",
+                                    "cmd_line" : ( None, 'some-param' ) })
+
+        conf.add("zip-bar")
+        p = conf.params["zip-bar"]
+
+        # Assert that default getopts are correct.
+        self.assertEqual(('z:', 'zip-bar='), p.make_getopts_str())
+
+        # Assert correctness of aut-generated conffile name.
+        self.assertEqual("ZIP_BAR", p.conffile)
+        p.value = "foo"
+        self.assertEqual(conf.get_by_conffile_name("ZIP_BAR"), "foo")
+
+    def _make_file(self, buf):
+        fname = self.dir_two_name+"/t1.conf"
+        f = open(fname, "w")
+        f.write(buf)
+        f.close()
+        return fname
+
+    def test_conf_configfile(self):
+        """
+        Testing parsing of configfile.
+
+        """
+        # Create config file with unknown parameter.
+        fname = self._make_file("""
+
+        # This is a comment line.
+        FOO xyz
+        """)
+        conf = Conf(self.sample_param_dict)
+        with open(fname, "r") as f:
+            self.assertRaisesRegexp(ParamError,
+                                    "Line 4: Unknown parameter 'FOO'.",
+                                    conf._parse_config_file, f)
+
+        # Create config file with malformed line
+        fname = self._make_file("""
+        MY_PARAM xyz baz
+        """)
+        conf = Conf(self.sample_param_dict)
+        with open(fname, "r") as f:
+            self.assertRaisesRegexp(ParamError,
+                                    "Line 2: Malformed line.",
+                                    conf._parse_config_file, f)
+
+        # Create config file with correct parameter but wrong value.
+        fname = self._make_file("""
+        MY_PARAM xyz
+        """)
+        conf = Conf(self.sample_param_dict)
+        with open(fname, "r") as f:
+            self.assertRaisesRegexp(ParamError,
+                                    "Line 2: Parameter 'foo': "
+                                    "'xyz' is not one of the allowed values.",
+                                    conf._parse_config_file, f)
+
+        # Create config file with correct parameters
+        fname = self._make_file("""
+
+         # empty lines and comments and stuff with odd indentation
+        MY_PARAM     foobar
+              # some comment
+            GGG   yes     # comment at end of line
+        """)
+        conf = Conf(self.sample_param_dict)
+        with open(fname, "r") as f:
+            conf._parse_config_file(f)
+
+        self.assertEqual(conf.get('foo'), "foobar")
+        self.assertTrue(conf.get('ggg'))
+
+    def test_conf_envvars(self):
+        """
+        Testing parsing of environment variables.
+
+        """
+        conf = Conf(self.sample_param_dict,
+                    default_env_prefix="FOOBAR_")
+
+        # Env variables with the defined prefix, but otherwise unknown name
+        # will simply be silently ignored.
+        os.environ['FOOBAR_SOMETHING_UNKNOWN'] = "foo"
+
+        # Set illegal value in env variable
+        os.environ['FOOBAR_MY_PARAM'] = "ggg"
+        self.assertRaisesRegexp(ParamError,
+                                "Environment variable FOOBAR_MY_PARAM: "
+                                "Parameter 'foo': 'ggg' is not one of the "
+                                "allowed values.",
+                                conf._process_env_vars)
+
+        # Set correct value in env variables
+        os.environ['FOOBAR_MY_PARAM'] = "something-else"
+        os.environ['FOOBAR_GGG'] = "y"
+        conf._process_env_vars()
+        self.assertEqual("something-else", conf.get('foo'))
+        self.assertTrue(conf.get('ggg'))
+
+    def test_conf_cmdline(self):
+        """
+        Testing parsing of command line arguments.
+
+        """
+        conf = Conf(self.sample_param_dict)
+
+        # Testing with illegal parameter
+        self.assertRaisesRegexp(ParamError,
+                                "Command line option: option --xyz not "
+                                "recognized.",
+                                conf._process_cmd_line,
+                                [ "--xyz=blah" ])
+
+        # Testing with illegal value
+        self.assertRaisesRegexp(ParamError,
+                                "Parameter 'foo': 'blah' is not one of the "
+                                "allowed values.",
+                                conf._process_cmd_line,
+                                [ "--some-param=blah", "-g", "--baz", "200" ])
+
+        # Testing with correct value
+        conf._process_cmd_line([ "--some-param=foobar", "-g", "--baz", "200" ])
+        self.assertEqual('foobar', conf.get('foo'))
+        self.assertEqual(200, conf.get('baz'))
+        self.assertTrue(conf.get('ggg'))
+
+    def test_conf_acquire(self):
+        """
+        Testing full run of acquire, using defaults, config files, environment
+        variables and command line options.
+
+        """
+        # Create the config file, some values are missing
+        self._make_file("""
+        MY_PARAM foobar
+        """)
+
+        conf = Conf(self.sample_param_dict,
+                    default_conf_file_locations=[self.dir_one_name,
+                                                 self.dir_two_name],
+                    default_env_prefix="FOOBAR_",
+                    default_conf_file_name="t1.conf")
+        self.assertRaisesRegexp(ParamError,
+                                "Parameter 'ggg': Requires a value, "
+                                "nothing has been set.",
+                                conf.acquire, list())
+
+        # Try again, this time set environment variable for missing value.
+        os.environ['FOOBAR_GGG'] = "yes"
+
+        conf.acquire([])
+        self.assertEqual("foobar", conf.get('foo'))
+        self.assertTrue(conf.get('ggg'))
+
+        # Try again, this time set environment variables for missing value as
+        # well as env overwrite for other param.
+        os.environ['FOOBAR_GGG'] = "yes"
+        os.environ['FOOBAR_MY_PARAM'] = "something-else"
+
+        conf.acquire([])
+
+        self.assertEqual("something-else", conf.get('foo'))
+        self.assertTrue(conf.get('ggg'))
+
+        # Try again, this time add a command line overwrite
+        conf.acquire([ "-f", "some-value" ])
+        self.assertEqual("some-value", conf.get('foo'))
 
 
 if __name__ == "__main__":

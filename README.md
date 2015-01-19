@@ -229,6 +229,15 @@ To run the set of unit tests, simply execute:
 ```
 python test.py
 ```
+If you wish to view code coverage of the tests, do this:
+```
+pip install coverage
+coverage run test.py
+coverage html
+```
+Point your browser to the htmlcov/index.html file, which will be created by
+coverage.
+
 
 ## Still TODO
 - Support other config file formats.

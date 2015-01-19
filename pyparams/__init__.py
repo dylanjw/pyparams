@@ -574,9 +574,9 @@ class Conf(object):
         Open config file and process its content.
 
         """
-        if not fname:
+        if (not fname) and self.default_conf_file_name:
             # Search for config file at default locations
-            for fname in [ prefix+self.default_conf_file_name for prefix
+            for fname in [ prefix+"/"+self.default_conf_file_name for prefix
                                         in self.default_conf_file_locations ]:
                 try:
                     with open(fname, "r") as f:
@@ -590,7 +590,7 @@ class Conf(object):
                     else:
                         raise ParamError(fname,
                                          "Error processing config file.")
-        else:
+        elif fname:
             with open(fname, "r") as f:
                 self.config_file = fname
                 self._parse_config_file(f)
@@ -654,7 +654,7 @@ class Conf(object):
         try:
             opts, args = getopt.getopt(args, short_opts_str, long_opts_list)
         except getopt.GetoptError as e:
-            raise ParamError("-Command line option", str(e))
+            raise ParamError("-Command line option", str(e) + ".")
 
         for o, a in opts:
             param = param_opt_lookup.get(o)
@@ -673,7 +673,7 @@ class Conf(object):
         Add a parameter with fill configuration.
 
         """
-        if 'name' in self.params:
+        if name in self.params:
             raise ParamError(name, "Duplicate definition.")
         else:
             short_opt = long_opt = None
