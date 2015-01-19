@@ -523,7 +523,9 @@ class Conf(object):
         self.params_by_conffile_name     = dict()
         self.default_allow_unset_values  = default_allow_unset_values
         self.default_conf_file_name      = default_conf_file_name
-        self.default_conf_file_locations = default_conf_file_locations
+        self.default_conf_file_locations = \
+            [ (l if (l == "" or l.endswith("/")) else l+"/") \
+                        for l in default_conf_file_locations ]
         self.default_env_prefix          = default_env_prefix or ""
         self.doc_section_order           = doc_section_order
 
@@ -576,7 +578,7 @@ class Conf(object):
         """
         if (not fname) and self.default_conf_file_name:
             # Search for config file at default locations
-            for fname in [ prefix+"/"+self.default_conf_file_name for prefix
+            for fname in [ prefix+self.default_conf_file_name for prefix
                                         in self.default_conf_file_locations ]:
                 try:
                     with open(fname, "r") as f:
