@@ -49,7 +49,7 @@ CONF = Conf(
             "default"        : "some-value",
             "allowed_values" : [ 'some-value', 'something-else', 'foobar' ],
             "conffile"       : "MY_PARAM",
-            "cmd_line"       : ('f', 'some-param')
+            "cmd_line"       : ('f', 'some-param'),
             "doc_spec"       : { 'text'    : "The description string here is "
                                              "long and will automatically be"
                                              "wrapped across multiple lines.",
@@ -67,7 +67,7 @@ CONF = Conf(
         "ggg" : {
             "default"        : None,
             "param_type"     : param.PARAM_TYPE_BOOL,
-            "cmd_line"       : ('g', None)
+            "cmd_line"       : ('g', None),
             "doc_spec"       : { 'text'    : "Flag control run of foobar.",
                                  'section' : "General" }
         },

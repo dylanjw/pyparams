@@ -1,4 +1,7 @@
+import os
+import tempfile
 import unittest
+import shutil
 
 from pyparams import ( _bool_check,
                        _str_list_check,
@@ -7,6 +10,7 @@ from pyparams import ( _bool_check,
                        PARAM_TYPE_BOOL,
                        PARAM_TYPE_INT,
                        PARAM_TYPE_STR_LIST,
+                       Conf
                      )
 
 
@@ -62,7 +66,7 @@ class LowLevelFunctionTests(unittest.TestCase):
 
 class ParamClassTests(unittest.TestCase):
     """
-    Tests for the Param class.
+    Tests for the _Param class.
 
     """
     def _make_param(self, **kwargs):
@@ -295,7 +299,144 @@ class ParamClassTests(unittest.TestCase):
                                     "    Conf file equivalent: FOOBAR\n"))
 
 
-    # TODO: Need to add tests for full configuration.
+class ConfigClassTests(unittest.TestCase):
+    """
+    Tests for the Config class.
+
+    """
+    def setUp(self):
+        """
+        Create a full config with a number of parameters.
+
+        Also create temporary directories to store config files in.
+
+        """
+        # Create a small temporary directory hierarchy
+        self.dir_one_name = tempfile.mkdtemp()
+        self.dir_two_name = tempfile.mkdtemp(dir=self.dir_one_name)
+
+        self.sample_param_dict = {
+        "foo" : {
+            "default"        : "some-value",
+            "allowed_values" : [ 'some-value', 'something-else', 'foobar' ],
+            "conffile"       : "MY_PARAM",
+            "cmd_line"       : ('f', 'some-param'),
+            "doc_spec"       : { 'text'    : "The description string here is "
+                                             "long and will automatically be"
+                                             "wrapped across multiple lines.",
+                                 'section' : "General",
+                                 'argname' : "the foo value" }
+        },
+        "baz" : {
+            "default"        : 123,
+            "allowed_range"  : dict(min=1, max=200),
+            "param_type"     : PARAM_TYPE_INT,
+            "doc_spec"       : { 'text'    : "Amount of baz gizmos to add.",
+                                 'section' : "Specific parameters",
+                                 'argname' : "num" }
+        },
+        "ggg" : {
+            "default"        : None,
+            "param_type"     : PARAM_TYPE_BOOL,
+            "cmd_line"       : ('g', None),
+            "doc_spec"       : { 'text'    : "Flag control run of foobar.",
+                                 'section' : "General" }
+        },
+        }
+
+    def tearDown(self):
+        """
+        Removing the temporary directories.
+
+        """
+        shutil.rmtree(self.dir_one_name)
+
+    def _make_conf(self, *args, **kwargs):
+        return Conf(*args, **kwargs)
+
+    def test_config_init_errors(self):
+        """
+        Test correct error handling during configuration creation.
+
+        """
+        # Error if unknown keyword pass in via param spec
+        self.assertRaisesRegexp(
+            ParamError,
+            "Parameter 'FOO': Invalid parameter config attribute.",
+            self._make_conf,
+            **{ "param_dict" : {
+                    "foo" : {
+                        "default"  : "some-value",
+                        "FOO"      : 123,
+                        "doc_spec" : {
+                            'text'    : "Some desc",
+                            'section' : "General",
+                            'argname' : "the foo value" }}}})
+
+        # Error if unknown param type presented
+        self.assertRaisesRegexp(
+            ParamError,
+            "Parameter 'foo': Unknown parameter type 'FOO'.",
+            self._make_conf,
+            **{ "param_dict" : {
+                    "foo" : {
+                        "default"    : "some-value",
+                        "param_type" : 'FOO',
+                        "doc_spec"   : {
+                            'text'    : "Some desc",
+                            'section' : "General",
+                            'argname' : "the foo value" }}}})
+
+    def test_conf_access_functions(self):
+        """
+        Testing of a few smaller access functions for the Conf object.
+
+        """
+        conf = Conf(self.sample_param_dict)
+
+        # Able to get a parameter
+        self.assertEqual(conf.get('foo'), 'some-value')
+
+        # Get proper exception when asking for undefine parameter
+        self.assertRaisesRegexp(ParamError,
+                                "Parameter 'bar': Unknown parameter.",
+                                conf.get, 'bar')
+
+        # Get all the parameter names
+        k = list(conf.keys())
+        k.sort()
+        self.assertEqual([ 'baz', 'foo', 'ggg'], k)
+
+        # Get all the items (name and values)
+        items = conf.items()
+        self.assertTrue(len(items), 3)
+        should = {'ggg': None, 'foo': 'some-value', 'baz': 123}
+        for k,v in should.items():
+            self.assertTrue(k in items)
+            self.assertEqual(items[k], v)
+
+        # Getting by conffile name
+        self.assertEqual(conf.get_by_conffile_name('GGG'), None)
+        self.assertEqual(conf.get_by_conffile_name('MY_PARAM'), 'some-value')
+        self.assertEqual(conf.get_by_conffile_name('BAZ'), 123)
+
+        # Setting invalid values should cause exception
+        self.assertRaisesRegexp(ParamError,
+                                "Parameter 'baz': "
+                                     "Cannot convert 'foo' to type 'integer'.",
+                                conf.set,
+                                'baz', "foo")
+        self.assertRaisesRegexp(ParamError,
+                                "Parameter 'baz': "
+                                     "'444' is not in the allowed range.",
+                                conf.set,
+                                'baz', 444)
+
+        # Setting valid value should be allowed
+        conf.set('baz',40)
+        self.assertEqual(conf.get('baz'), 40)
+
+
 
 if __name__ == "__main__":
     unittest.main()
