@@ -6,11 +6,13 @@ import unittest
 
 from pyparams import ( _bool_check,
                        _str_list_check,
+                       _str_dict_check,
                        _Param,
                        ParamError,
                        PARAM_TYPE_BOOL,
                        PARAM_TYPE_INT,
                        PARAM_TYPE_STR_LIST,
+                       PARAM_TYPE_STR_DICT,
                        Conf
                      )
 
@@ -43,6 +45,18 @@ class LowLevelFunctionTests(unittest.TestCase):
         self.assertEqual([ "1","2","3" ], _str_list_check( "1 ,  2 ,  3" ))
         self.assertEqual([ "","1","","3","" ], _str_list_check( ",1,,3," ))
         self.assertEqual([ "1:3" ], _str_list_check( "1:3" ))
+
+    def test_str_dict_check(self):
+        """
+        Test the function that converts lists of strings.
+
+        """
+        self.assertEqual({ 'foo' : 123 }, _str_dict_check( { 'foo' : 123 }))
+        self.assertEqual({ 'foo' : '123' }, _str_dict_check( "{ foo : 123 }"))
+        self.assertEqual({ 'foo' : '123', 'bar' : 'ggg' },
+                         _str_dict_check( "{ foo : 123 ; bar : ggg }"))
+        self.assertEqual({ 'foo' : [ '123', 'ddd' ], 'bar' : 'ggg' },
+                         _str_dict_check( "{ foo : 123 , ddd ; bar : ggg }"))
 
     def test_param_error_class(self):
         """
@@ -320,7 +334,8 @@ class ConfigClassTests(unittest.TestCase):
         cls.sample_param_dict = {
         "foo" : {
             "default"        : "some-value",
-            "allowed_values" : [ 'some-value', 'something-else', 'foobar' ],
+            "allowed_values" : [ 'some-value', 'something-else', 'foobar',
+                                 'xyz baz' ],
             "conffile"       : "MY_PARAM",
             "cmd_line"       : ('f', 'some-param'),
             "doc_spec"       : { 'text'    : "The description string here is "
@@ -328,6 +343,15 @@ class ConfigClassTests(unittest.TestCase):
                                              "wrapped across multiple lines.",
                                  'section' : "General",
                                  'argname' : "the foo value" }
+        },
+        "ddd" : {
+            "default"        : { 'baz' : 123 },
+            "conffile"       : "MY_DICT",
+            "param_type"     : PARAM_TYPE_STR_DICT,
+            "cmd_line"       : ( 'Q', None ),
+            "doc_spec"       : { 'text'    : "A dict value.",
+                                 'section' : "General",
+                                 'argname' : "the ddd value" }
         },
         "baz" : {
             "default"        : 123,
@@ -408,7 +432,7 @@ class ConfigClassTests(unittest.TestCase):
         # Get all the parameter names
         k = list(conf.keys())
         k.sort()
-        self.assertEqual([ 'baz', 'foo', 'ggg'], k)
+        self.assertEqual([ 'baz', 'ddd', 'foo', 'ggg'], k)
 
         # Get all the items (name and values)
         items = conf.items()
@@ -458,6 +482,11 @@ class ConfigClassTests(unittest.TestCase):
                  "    -g\n"
                  "        Flag control run of foobar.\n"
                  "        Conf file equivalent: GGG\n"
+                 "    \n"
+                 "    -Q <the ddd value>\n"
+                 "        A dict value.\n"
+                 "        Default value: {'baz': 123}\n"
+                 "        Conf file equivalent: MY_DICT\n"
                  "    \n"
                  "Specific parameters:\n"
                  "    -b <num>, --baz=<num>\n"
@@ -525,16 +554,6 @@ class ConfigClassTests(unittest.TestCase):
                                     "Line 4: Unknown parameter 'FOO'.",
                                     conf._parse_config_file, f)
 
-        # Create config file with malformed line
-        fname = self._make_file("""
-        MY_PARAM xyz baz
-        """)
-        conf = Conf(self.sample_param_dict)
-        with open(fname, "r") as f:
-            self.assertRaisesRegexp(ParamError,
-                                    "Line 2: Malformed line.",
-                                    conf._parse_config_file, f)
-
         # Create config file with correct parameter but wrong value.
         fname = self._make_file("""
         MY_PARAM xyz
@@ -550,16 +569,26 @@ class ConfigClassTests(unittest.TestCase):
         fname = self._make_file("""
 
          # empty lines and comments and stuff with odd indentation
-        MY_PARAM     foobar
+        MY_PARAM     xyz baz
+
+          MY_DICT     { bar : 123;    # some comment that's ignored
+                          baz : foo,bar,   blah  , fff ;
+                          }
               # some comment
-            GGG   yes     # comment at end of line
+         GGG   yes     # comment at end of line
         """)
         conf = Conf(self.sample_param_dict)
         with open(fname, "r") as f:
             conf._parse_config_file(f)
 
-        self.assertEqual(conf.get('foo'), "foobar")
+        self.assertEqual(conf.get('foo'), "xyz baz")
         self.assertTrue(conf.get('ggg'))
+        d = conf.get('ddd')
+        self.assertEqual(len(d), 2)
+        self.assertTrue('bar' in d)
+        self.assertTrue('baz' in d)
+        self.assertEqual(d['bar'], "123")
+        self.assertEqual(d['baz'], [ "foo", "bar", "blah", "fff" ])
 
     def test_conf_envvars(self):
         """
@@ -610,10 +639,16 @@ class ConfigClassTests(unittest.TestCase):
                                 [ "--some-param=blah", "-g", "--baz", "200" ])
 
         # Testing with correct value
-        conf._process_cmd_line([ "--some-param=foobar", "-g", "--baz", "200" ])
+        conf._process_cmd_line([ "--some-param=foobar", "-g", "--baz", "200",
+                                 "-Q", "{ foo:123 ; bar:1, 2,3; a: X  Y Z }" ])
         self.assertEqual('foobar', conf.get('foo'))
         self.assertEqual(200, conf.get('baz'))
         self.assertTrue(conf.get('ggg'))
+        d = conf.get('ddd')
+        self.assertEqual(len(d), 3)
+        self.assertEqual(d['foo'], "123")
+        self.assertEqual(d['bar'], ["1", "2", "3"])
+        self.assertEqual(d['a'], "X  Y Z")
 
     def test_conf_acquire(self):
         """

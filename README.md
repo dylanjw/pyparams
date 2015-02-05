@@ -69,8 +69,9 @@ CONF = Conf(
     #                   want a conffile (and environment variable) equivalent,
     #                   set this to None.
     # - param_type:     The allowed type of the parameter, either
-    #                   PARAM_TYPE_STR (the default), PARAM_TYPE_INT or
-    #                   PARAM_TYPE_BOOL.
+    #                   PARAM_TYPE_STR (the default), PARAM_TYPE_INT,
+    #                   PARAM_TYPE_BOOL, PARAM_TYPE_STR_LIST or
+    #                   PARAM_TYPE_STR_DICT.
     # - cmd_line:       A tuple containing the short-option letter and the
     #                   lon-option name. Either one can be left None, or the
     #                   entire cmd_line value can be omitted. In the latter
@@ -99,6 +100,10 @@ CONF = Conf(
         "lll" : {
             "default"        : "Peter,Tom,Sally,Alice,Bob",
             "param_type"     : pyparams.PARAM_TYPE_STR_LIST,
+        },
+        "ddd" : {
+            "default"        : { 'bar' : "foobar" },
+            "param_type"     : pyparams.PARAM_TYPE_STR_DICT,
         }
     }
 )
@@ -166,6 +171,28 @@ A note about lists:
 - If allowed_values or allowed_range is defined then each element of the list
   needs to pass this validation test.
 
+A note about dicts:
+
+- Dicts have string keys and can have string or list values.
+- Currently, no allowed keys, values or ranges are suppored for dicts. The
+  calling program needs to validate those values for now.
+- Dicts are specified as a string starting with '{' and ending with '}'.
+- Name value pairs are defined with two strings, separated by ':'.
+- Multiple name value pairs are separated by ';'.
+- Values can be string-lists (each element in those lists, separated by ',').
+- Example:
+        { foo:123; bar:aa , bb, cc  ;  baz : This is a test   }
+  This results in:
+        { 'foo' : "123",
+          'bar' : [ "aa", "bb", "cc" ],
+          'baz' : "This is a test" }
+- In config files, dictionary definitions can stretch over multiple lines,
+  as long as each line (except the last one) ends with a ';'. Example:
+
+        MY_DICT     { foo : 123 ;
+                      bar : aa, bb, cc;
+                      baz : This is a test ; # Trailing ; ignored in this case 
+                    }
 
 ## Sample program
 ```
@@ -246,6 +273,5 @@ coverage.
   (for example local directory).
 - Allow per-parameter definition of environment variable equivalent (or no
   equivalent at all).
-- Add a dict type.
 
 

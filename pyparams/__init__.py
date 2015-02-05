@@ -55,6 +55,14 @@ CONF = Conf(
                                              "wrapped across multiple lines.",
                                  'section' : "General",
                                  'argname' : "the foo value" }
+        "ddd" : {
+            "default"        : { 'baz' : 123 },
+            "conffile"       : "MY_DICT",
+            "param_type"     : PARAM_TYPE_STR_DICT,
+            "cmd_line"       : None,
+            "doc_spec"       : { 'text'    : "A dict value.",
+                                 'section' : "General",
+                                 'argname' : "the ddd value" }
         },
         "baz" : {
             "default"        : 123,
@@ -120,8 +128,9 @@ PARAM_TYPE_STR         = "string"
 PARAM_TYPE_INT         = "integer"
 PARAM_TYPE_BOOL        = "bool"
 PARAM_TYPE_STR_LIST    = "str-list"
+PARAM_TYPE_STR_DICT    = "str-dict"
 _PARAM_TYPES_ALLOWED   = [ PARAM_TYPE_STR, PARAM_TYPE_INT, PARAM_TYPE_BOOL,
-                           PARAM_TYPE_STR_LIST ]
+                           PARAM_TYPE_STR_LIST, PARAM_TYPE_STR_DICT ]
 
 __NOT_DEFINED__        = "__NOT_DEFINED__"
 
@@ -152,9 +161,12 @@ def _str_list_check(val):
     Return a list, if the value string is properly formatted and can
     be translated to a list.
 
-    Acceptable format: "foo,bar,baz"
+    Acceptable format:
 
-    If the value is already a string, just return that.
+        * "foo,bar,baz"      -> [ "foo", "bar", "baz" ]
+        * "foo, bar  , baz"  -> [ "foo", "bar", "baz" ]
+
+    If the value is already a list, just return that.
 
     Raises exception if problems.
 
@@ -165,6 +177,49 @@ def _str_list_check(val):
         return [ str(e).strip() for e in val.split(",") ]
     except:
         raise ParamError(str(val), "Malformed list format.")
+
+def _str_dict_check(val):
+    """
+    Return a duct, if the value string is properly formatted and can be
+    translated to a dict.
+
+    Acceptable format:
+
+        * "{foo:bar;baz:123}"          -> dict(foo="bar", baz=123)
+        * "{ foo:bar,fuzz ; baz:xyz }" -> dict(foo=["bar","fuzz"],
+                                               baz="xyz")
+
+    If the value is already a dict, just return that.
+
+    Raises exception if problems.
+
+    """
+    if type(val) is dict:
+        return val
+    val = val.strip()
+    if val[0] != "{" or val[-1] != "}":
+        raise ParamError(str(val), "Malformed dict format: "
+                                   "Need to be enclosed in { }.")
+    try:
+        elems = [ e.strip() for e in val[1:-1].split(";") ]
+        d = dict()
+        for e in elems:
+            e = e.strip()
+            if e:
+                name, val = e.split(":")
+                name = name.strip()
+                val = val.strip()
+                if "," in val:
+                    try:
+                        d[name] = _str_list_check(val)
+                    except ParamError as e:
+                        raise e
+                else:
+                    d[name] = val
+        return d
+    except:
+        raise ParamError(str(val), "Malformed dict format.")
+
 
 
 class ParamError(Exception):
@@ -199,7 +254,8 @@ class _Param(object):
         PARAM_TYPE_STR      : str,
         PARAM_TYPE_INT      : int,
         PARAM_TYPE_BOOL     : _bool_check,
-        PARAM_TYPE_STR_LIST : _str_list_check
+        PARAM_TYPE_STR_LIST : _str_list_check,
+        PARAM_TYPE_STR_DICT : _str_dict_check
     }
 
     def __init__(self, name, default=None, allowed_values=None,
@@ -545,20 +601,56 @@ class Conf(object):
         """
         Read through the config file and set con values.
 
+        For dict values we can read across multiple lines.
+
         """
+        in_dict = False
+        dict_completed = False
+        value   = ""
         for i, line in enumerate(f.readlines()):
             line = line.strip()
             # Strip off any comments...
             elems = line.split("#", 1)
-            line = elems[0]
+            line = elems[0].strip()
             # ... and skip if there's nothing left
             if not line:
                 continue
 
-            elems = line.split()
-            if len(elems) != 2:
-                raise ParamError("-Line %d" % (i+1), "Malformed line.")
-            param_name, value = elems
+            line.replace("\t", " ")
+            if in_dict:
+                # Continuing the processing of a dict line. We can only be here
+                # if we already have a starting value from the previous line.
+                value += line
+                if line.endswith("}"):
+                    in_dict = False
+                    dict_completed = True
+                elif not line.endswith(";"):
+                    raise ParamError("-Line %d" % (i+1),
+                                     "Dict continuation line must end in ';'.")
+                else:
+                    continue
+
+            if not (in_dict  or  dict_completed):
+                # Not in a dict continuation line
+
+                elems = line.split(" ", 1)
+                if len(elems) != 2:
+                    raise ParamError("-Line %d" % (i+1), "Malformed line.")
+                param_name, value = elems
+                param_name = param_name.strip()
+                value = value.strip()
+                # Special processing for dicts: They can be defined over
+                # multiple lines, individual elements separated by a ';'.
+                # Therefore, if the value starts with a '{', we will look for
+                # the ending '}', allowing line splits if the line ends with
+                # ';'.
+                if value.startswith('{') and value.endswith(';'):
+                    # We have the start of a dict
+                    in_dict = True
+                    continue
+
+            if dict_completed:
+                dict_completed = False
 
             try:
                 param = self.params_by_conffile_name[param_name]
