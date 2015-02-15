@@ -571,7 +571,8 @@ class ConfigClassTests(unittest.TestCase):
          # empty lines and comments and stuff with odd indentation
         MY_PARAM     xyz baz
 
-          MY_DICT     { bar : 123;    # some comment that's ignored
+          MY_DICT     {
+              bar : 123;    # some comment that's ignored
                           baz : foo,bar,   blah  , fff ;
                           }
               # some comment

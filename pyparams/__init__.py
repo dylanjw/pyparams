@@ -601,7 +601,8 @@ class Conf(object):
         """
         Read through the config file and set con values.
 
-        For dict values we can read across multiple lines.
+        In config files dictionaries can stretch over multiple lines, breaking
+        either behind '{' or behind ';'.
 
         """
         in_dict = False
@@ -644,7 +645,7 @@ class Conf(object):
                 # Therefore, if the value starts with a '{', we will look for
                 # the ending '}', allowing line splits if the line ends with
                 # ';'.
-                if value.startswith('{') and value.endswith(';'):
+                if value.startswith('{'):
                     # We have the start of a dict
                     in_dict = True
                     continue
