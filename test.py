@@ -548,6 +548,12 @@ class ConfigClassTests(unittest.TestCase):
         # This is a comment line.
         FOO xyz
         """)
+        # First we parse it while we are allowing unknown params: No error
+        conf = Conf(self.sample_param_dict, default_allow_unknown_params=True)
+        with open(fname, "r") as f:
+            conf._parse_config_file(f)
+
+        # Now we switch on the default mode: Unknown params are not allowed
         conf = Conf(self.sample_param_dict)
         with open(fname, "r") as f:
             self.assertRaisesRegexp(ParamError,

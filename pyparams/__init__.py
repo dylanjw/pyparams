@@ -536,7 +536,7 @@ class Conf(object):
     def __init__(self, param_dict=dict(), default_conf_file_name=None,
                  default_conf_file_locations=[ "", "~/", "/etc/" ],
                  default_env_prefix=None, default_allow_unset_values=False,
-                 doc_section_order=None):
+                 default_allow_unknown_params=False, doc_section_order=None):
         """
         Initialize the configuration object.
 
@@ -571,6 +571,11 @@ class Conf(object):
                                        config files, environment variables and
                                        command line options are evaluated. By
                                        default, the test is peformed.
+        - default_allow_unknown_params: If set to True, unknown parameters in
+                                       config files will be ignored, no
+                                       'Unknown parameter' exception will be
+                                       raised. By default, unknown parameters
+                                       are not accepted.
         - doc_section_order:           Define the order in which the various
                                        sections of your parameter docs are
                                        printed when calling make_docs().
@@ -580,18 +585,19 @@ class Conf(object):
                                        alphabetical order.
 
         """
-        self.params                      = dict()
-        self.params_by_conffile_name     = dict()
-        self.default_allow_unset_values  = default_allow_unset_values
-        self.default_conf_file_name      = default_conf_file_name
-        self.default_conf_file_locations = \
+        self.params                       = dict()
+        self.params_by_conffile_name      = dict()
+        self.default_allow_unset_values   = default_allow_unset_values
+        self.default_allow_unknown_params = default_allow_unknown_params
+        self.default_conf_file_name       = default_conf_file_name
+        self.default_conf_file_locations  = \
             [ (l if (l == "" or l.endswith("/")) else l+"/") \
                         for l in default_conf_file_locations ]
-        self.default_env_prefix          = default_env_prefix or ""
-        self.doc_section_order           = doc_section_order
+        self.default_env_prefix           = default_env_prefix or ""
+        self.doc_section_order            = doc_section_order
 
-        self._all_short_opts_so_far      = list()
-        self._all_long_opts_so_far       = list()
+        self._all_short_opts_so_far       = list()
+        self._all_long_opts_so_far        = list()
 
         for param_name, param_conf in param_dict.items():
             for k in param_conf.keys():
@@ -602,7 +608,7 @@ class Conf(object):
 
             self.add(name=param_name, **param_conf)
 
-    def _parse_config_file(self, f):
+    def _parse_config_file(self, f, allow_unknown_params=None):
         """
         Read through the config file and set con values.
 
@@ -610,6 +616,9 @@ class Conf(object):
         either behind '{' or behind ';'.
 
         """
+        if allow_unknown_params is None:
+            allow_unknown_params = self.default_allow_unknown_params
+
         in_dict = False
         dict_completed = False
         value   = ""
@@ -666,10 +675,13 @@ class Conf(object):
             except ParamError as e:
                 raise ParamError("-Line %d" % (i+1), e.message)
             except KeyError as e:
-                raise ParamError("-Line %d" % (i+1),
-                                 "Unknown parameter '%s'." % param_name)
+                if not allow_unknown_params:
+                    raise ParamError("-Line %d" % (i+1),
+                                     "Unknown parameter '%s'." % param_name)
+                else:
+                    pass
 
-    def _process_config_file(self, fname):
+    def _process_config_file(self, fname, allow_unknown_params):
         """
         Open config file and process its content.
 
@@ -693,7 +705,7 @@ class Conf(object):
         elif fname:
             with open(fname, "r") as f:
                 self.config_file = fname
-                self._parse_config_file(f)
+                self._parse_config_file(f, allow_unknown_params)
 
     def _process_env_vars(self, env_prefix=None):
         """
@@ -883,7 +895,7 @@ class Conf(object):
         param.value = param.validate(value)
 
     def acquire(self, args, config_filename=None, env_prefix=None,
-                allow_unset_values=None):
+                allow_unset_values=None, allow_unknown_params=None):
         """
         Retrieve values for the defined parameters from multiple sources.
 
@@ -902,7 +914,7 @@ class Conf(object):
         to the config object in the 'config_file' attribute.
 
         """
-        self._process_config_file(config_filename)
+        self._process_config_file(config_filename, allow_unknown_params)
         self._process_env_vars(env_prefix)
         self._process_cmd_line(args)
 
