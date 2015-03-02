@@ -1,6 +1,11 @@
 """
 Process command line arguments, config file and environment variables.
 
+(c) 2015 by Juergen Brendel
+
+Repository URL: https://github.com/jbrendel/pyparams
+
+
 This module uses a single parameter definition to define and initialize
 configuration parameters for a program.
 
@@ -968,7 +973,8 @@ class Conf(object):
             snames = self.doc_section_order
         else:
             snames = sections.keys()
-            snames.sort(key=lambda k: k.lower())
+            if snames and snames[0] is not None:
+                snames.sort(key=lambda k: k.lower())
 
         # Output for each section. Each parameter output line is indented.
         for sname in snames:
