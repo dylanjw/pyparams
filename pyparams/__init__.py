@@ -975,9 +975,31 @@ class Conf(object):
                 sections.setdefault(sec, list()).append(txt)
 
         # Alphabetically sort the list of parameters in each section.
-        # Ignore case.
+        # Ignore case. Each parameter's documentation is a single test blob by
+        # now, but we can tell those parameters that don't have short options
+        # apart simply because that string blob starts with '--'. We would like
+        # those parameters to be listed last. Furthermore, we would like the
+        # same letter, but differently capitalized, to show the capital letter
+        # last (even though naturally, a capital letter is 'less' than a lower
+        # case letter).
+        #
+        # Therefore our 'key' function we pass to sort() does a number of
+        # things: It adds a 'high' character (we use '_') to the start of any
+        # '--' option. It also adds a '_' behind the first letter if the key is
+        # an upper case string. That way, a capitalized option will be pushed
+        # below a lower-case option that starts with the same letter.
+        def my_key(k):
+            if k.startswith("--"):
+                k = "_"+k
+                first_letter = 2
+            else:
+                first_letter = 1
+            if k[first_letter].isupper():
+                k = "%s_%s" % (k[:first_letter+1], k[first_letter+1:])
+            return k.lower()
+
         for param_list in sections.values():
-            param_list.sort(key=lambda k: k.lower())
+            param_list.sort(key=my_key)
 
         # Sort the section order, or use the explicitly specified one.
         # Ignore case.
