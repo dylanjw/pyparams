@@ -579,7 +579,8 @@ class ConfigClassTests(unittest.TestCase):
 
           MY_DICT     {
               bar : 123;    # some comment that's ignored
-                          baz : foo,bar,   blah  , fff ;
+                          baz : foo,
+                       bar,   blah  , fff ;
                           }
               # some comment
          GGG   yes     # comment at end of line

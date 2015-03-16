@@ -185,7 +185,7 @@ def _str_list_check(val):
 
 def _str_dict_check(val):
     """
-    Return a duct, if the value string is properly formatted and can be
+    Return a dict, if the value string is properly formatted and can be
     translated to a dict.
 
     Acceptable format:
@@ -613,7 +613,7 @@ class Conf(object):
         Read through the config file and set con values.
 
         In config files dictionaries can stretch over multiple lines, breaking
-        either behind '{' or behind ';'.
+        either behind '{' or behind ';' or behind ',' within a list value.
 
         """
         if allow_unknown_params is None:
@@ -639,9 +639,10 @@ class Conf(object):
                 if line.endswith("}"):
                     in_dict = False
                     dict_completed = True
-                elif not line.endswith(";"):
-                    raise ParamError("-Line %d" % (i+1),
-                                     "Dict continuation line must end in ';'.")
+                elif not (line.endswith(";")  or  line.endswith(",")):
+                    raise ParamError(
+                        "-Line %d" % (i+1),
+                        "Dict continuation line must end in ';' or ','.")
                 else:
                     continue
 
