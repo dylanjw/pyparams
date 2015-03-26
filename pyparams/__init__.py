@@ -20,8 +20,12 @@ A full config definition may look like this. Comments are inserted to explain
 various features:
 
 CONF = Conf(
-    # Specify the default name of your project's config file.
-    default_conf_file_name     = "myproject-params.conf",
+    # Specify the parameter name that we should look for first in order to get
+    # a specified configuration filename from the command line. This is the
+    # name that may have been specified for the configuration file parameter in
+    # the parameter definition dictionary. The caller knows what parameter is
+    # used for this, since they defined it.
+    conf_file_parameter         = "conffile",
 
     # Specify any locations (paths) where we should look for the config file
     # in the specified order. By default it looks in the current directory,
@@ -533,7 +537,7 @@ class Conf(object):
     added later on.
 
     """
-    def __init__(self, param_dict=dict(), default_conf_file_name=None,
+    def __init__(self, param_dict=dict(), conf_file_parameter=None,
                  default_conf_file_locations=[ "", "~/", "/etc/" ],
                  default_env_prefix=None, default_allow_unset_values=False,
                  default_allow_unknown_params=False, doc_section_order=None):
@@ -544,11 +548,8 @@ class Conf(object):
                                        definitions. The format of this
                                        dictionary is show in this file's
                                        docstring and various sample programs
-        - default_conf_file_name:      The name of the configuration file that
-                                       we will look for. This is just the
-                                       filename, not a full path. This value
-                                       can can be overwritten in the acquire()
-                                       call.
+        - conf_file_parameter:         Name of the parameter with which a user
+                                       can specify a configuration file.
         - default_conf_file_locations: List of directories, which will be
                                        search (first to last) to look for the
                                        config file. Once it is found it is
@@ -589,7 +590,7 @@ class Conf(object):
         self.params_by_conffile_name      = dict()
         self.default_allow_unset_values   = default_allow_unset_values
         self.default_allow_unknown_params = default_allow_unknown_params
-        self.default_conf_file_name       = default_conf_file_name
+        self.conf_file_parameter          = conf_file_parameter
         self.default_conf_file_locations  = \
             [ (l if (l == "" or l.endswith("/")) else l+"/") \
                         for l in default_conf_file_locations ]
@@ -687,23 +688,29 @@ class Conf(object):
         Open config file and process its content.
 
         """
-        if (not fname) and self.default_conf_file_name:
-            # Search for config file at default locations
-            for fname in [ prefix+self.default_conf_file_name for prefix
-                                        in self.default_conf_file_locations ]:
+        if not fname:
+            # It's possible that no config file is specified at all.
+            return
+        if fname[0] not in [ "/", "." ]:
+            # Search for config file at default locations, since the user
+            # didn't specify an absolute path name.
+            for fn in [ prefix+fname for prefix
+                           in self.default_conf_file_locations ]:
                 try:
-                    with open(fname, "r") as f:
-                        self.config_file = fname
-                        self._parse_config_file(f)
+                    with open(fn, "r") as f:
+                        self.config_file = fn
+                        self._parse_config_file(f, allow_unknown_params)
                 except IOError as e:
                     if "No such file" in e.strerror:
                         # Quietly ignore failures to find the file. Not having
                         # a config file is allowed.
                         pass
                     else:
+                        # Some other error?
                         raise ParamError(fname,
                                          "Error processing config file.")
-        elif fname:
+        else:
+            # Looks the user specified an absolute path name
             with open(fname, "r") as f:
                 self.config_file = fname
                 self._parse_config_file(f, allow_unknown_params)
@@ -737,11 +744,16 @@ class Conf(object):
                                                                full_var_name,
                                       e.message)
 
-    def _process_cmd_line(self, args):
+    def _process_cmd_line(self, args, filter_list=None):
         """
         Process any command line arguments.
 
         Those take precedence over config file and environment variables.
+
+        With filter_list a list of options can be specified, to which the
+        function should limit itself. This allows for the selective processing
+        of just certain parameters. For example, an initial parameter run,
+        which only looks for parameters, such as the config-file location.
 
         """
         # Create short option string
@@ -773,7 +785,8 @@ class Conf(object):
             param = param_opt_lookup.get(o)
             if not param:
                 raise ParamError(o, "Unknown parameter.")
-            if not param.ignore:
+            if not param.ignore  and \
+                    ((not filter_list) or param.name in filter_list):
                 if param.param_type == PARAM_TYPE_BOOL:
                     self.set(param.name, True)
                 else:
@@ -908,13 +921,22 @@ class Conf(object):
         3. environment variables
         4. command line arguments
 
-        If a config-file name is specified then this overrides the default
-        config file name of the config object.
-
-        As a side effect, the actually read config file name/path is attached
-        to the config object in the 'config_file' attribute.
+        If a config_filename is specified that is not an absolute path then we
+        will look for it in various default locations. Once found, the full
+        path of the actually read config file is attached in the 'config_file'
+        attribute.
 
         """
+        # Get the config file name: Process the command line parameters, but
+        # just look for the presence of the config-file-name parameter, by
+        # specifying the parameter-name (not the parameter value).
+        if self.conf_file_parameter:
+            self._process_cmd_line(args,
+                                   filter_list=[ self.conf_file_parameter ])
+            config_filename = self.get(self.conf_file_parameter)
+        else:
+            config_filename = None
+
         self._process_config_file(config_filename, allow_unknown_params)
         self._process_env_vars(env_prefix)
         self._process_cmd_line(args)
@@ -1030,7 +1052,7 @@ if __name__ == "__main__":
 # A sample configuration:
 
     CONF = Conf(
-        default_conf_file_name = "yixus-deploy.conf",
+        conf_file_parameter    = None,
         default_env_prefix     = "DEPLOY_",
         default_allow_unset_values     = True,
         param_dict = {

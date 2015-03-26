@@ -2,12 +2,20 @@ import pyparams
 import sys
 
 CONF = pyparams.Conf(
-    default_conf_file_name      = "myproject-params.conf",
+    conf_file_parameter         = "conffile",
     default_conf_file_locations = [ "", "/etc/" ],
     default_env_prefix          = "MYPROJECT_",
     default_allow_unset_values  = False,
     doc_section_order           = [ "Specific parameters", "General" ],
     param_dict = {
+        "conffile" : {
+            "default"        : "myproject.conf",
+            "cmd_line"       : ( None, 'conffile' ),
+            "conffile"       : None,
+            "doc_spec"       : { 'text'    : "Name of config file",
+                                 'section' : "General",
+                                 'argname' : "conffile" }
+        },
         "foo" : {
             "default"        : "some-value",
             "allowed_values" : [ 'some-value', 'something-else', 'foobar' ],
