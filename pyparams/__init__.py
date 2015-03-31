@@ -25,7 +25,7 @@ CONF = Conf(
     # name that may have been specified for the configuration file parameter in
     # the parameter definition dictionary. The caller knows what parameter is
     # used for this, since they defined it.
-    conf_file_parameter         = "conffile",
+    conf_file_parameter         = "configfile",
 
     # Specify any locations (paths) where we should look for the config file
     # in the specified order. By default it looks in the current directory,

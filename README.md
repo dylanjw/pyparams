@@ -31,8 +31,12 @@ various features:
 
 ```
 CONF = Conf(
-    # Specify the default name of your project's config file.
-    default_conf_file_name     = "myproject-params.conf",
+    # Specify the parameter name that we should look for first in order to get
+    # a specified configuration filename from the command line. This is the
+    # name that may have been specified for the configuration file parameter in
+    # the parameter definition dictionary. The caller knows what parameter is
+    # used for this, since they defined it.
+    conf_file_parameter         = "configfile",
 
     # Specify any locations (paths) where we should look for the config file
     # in the specified order. By default it looks in the current directory,
@@ -199,11 +203,16 @@ A note about dicts:
 import pyparams
 
 CONF = pyparams.Conf(
-    default_conf_file_name      = "myproject-params.conf",
+    conf_file_parameter         = "configfile",
     default_conf_file_locations = [ "", "/etc/" ],
     default_env_prefix          = "MYPROJECT_",
     default_allow_unset_values  = False,
     param_dict = {
+        "configfile" : {
+            "default"        : "myproject-params.conf",
+            "conffile"       : None,
+            "cmd_line"       : ('c', 'conf')
+        },
         "foo" : {
             "default"        : "some-value",
             "allowed_values" : [ 'some-value', 'something-else', 'foobar' ],

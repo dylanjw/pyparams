@@ -331,11 +331,11 @@ class ConfigClassTests(unittest.TestCase):
         cls.dir_two_name = tempfile.mkdtemp(dir=cls.dir_one_name)
 
         cls.sample_param_dict = {
-        "conffile" : {
+        "configfile" : {
             "default"        : "t1.conf",
-            "cmd_line"       : ( None, 'conffile' ),
+            "cmd_line"       : ( None, 'configfile' ),
             "conffile"       : None,
-            "doc_spec"       : { 'text'    : "Conffile name",
+            "doc_spec"       : { 'text'    : "Config file name",
                                  'section' : "General",
                                  'argname' : "config file name" }
         },
@@ -439,7 +439,7 @@ class ConfigClassTests(unittest.TestCase):
         # Get all the parameter names
         k = list(conf.keys())
         k.sort()
-        self.assertEqual([ 'baz', 'conffile', 'ddd', 'foo', 'ggg'], k)
+        self.assertEqual([ 'baz', 'configfile', 'ddd', 'foo', 'ggg'], k)
 
         # Get all the items (name and values)
         items = conf.items()
@@ -495,8 +495,8 @@ class ConfigClassTests(unittest.TestCase):
                  "        Default value: {'baz': 123}\n"
                  "        Conf file equivalent: MY_DICT\n"
                  "    \n"
-                 "    --conffile=<config file name>\n"
-                 "        Conffile name\n"
+                 "    --configfile=<config file name>\n"
+                 "        Config file name\n"
                  "        Default value: t1.conf\n"
                  "    \n"
                  "Specific parameters:\n"
@@ -684,7 +684,7 @@ class ConfigClassTests(unittest.TestCase):
                     default_conf_file_locations=[self.dir_one_name,
                                                  self.dir_two_name],
                     default_env_prefix="FOOBAR_",
-                    conf_file_parameter="conffile")
+                    conf_file_parameter="configfile")
         self.assertRaisesRegexp(ParamError,
                                 "Parameter 'ggg': Requires a value, "
                                 "nothing has been set.",
