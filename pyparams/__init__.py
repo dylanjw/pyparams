@@ -632,7 +632,7 @@ class Conf(object):
             if not line:
                 continue
 
-            line.replace("\t", " ")
+            line = line.replace("\t", " ")
             if in_dict:
                 # Continuing the processing of a dict line. We can only be here
                 # if we already have a starting value from the previous line.
@@ -652,7 +652,9 @@ class Conf(object):
 
                 elems = line.split(" ", 1)
                 if len(elems) != 2:
-                    raise ParamError("-Line %d" % (i+1), "Malformed line.")
+                    raise ParamError("-Line %d" % (i+1),
+                                     "Malformed line. Should have exactly 2 "
+                                     "tokens")
                 param_name, value = elems
                 param_name = param_name.strip()
                 value = value.strip()
