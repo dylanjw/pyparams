@@ -178,7 +178,11 @@ A note about lists:
 A note about dicts:
 
 - Dicts have string keys and can have string or list values.
-- Currently, no allowed keys, values or ranges are suppored for dicts. The
+- With allowed_keys you can limit the allowable dictionary keys to a specified
+  set.
+- With mandatory_keys you specify the minimum set of keys that need to be
+  present.
+- Currently, no allowed values or ranges are suppored for dicts. The
   calling program needs to validate those values for now.
 - Dicts are specified as a string starting with '{' and ending with '}'.
 - Name value pairs are defined with two strings, separated by ':'.

@@ -66,6 +66,7 @@ CONF = Conf(
                                  'argname' : "the foo value" }
         "ddd" : {
             "default"        : { 'baz' : 123 },
+            "allowed_keys"   : [ 'foo', 'baz' ],
             "conffile"       : "MY_DICT",
             "param_type"     : PARAM_TYPE_STR_DICT,
             "cmd_line"       : None,
@@ -144,7 +145,23 @@ _PARAM_TYPES_ALLOWED   = [ PARAM_TYPE_STR, PARAM_TYPE_INT, PARAM_TYPE_BOOL,
 __NOT_DEFINED__        = "__NOT_DEFINED__"
 
 
-def _bool_check(val):
+def _int_check(val, param_obj=None):
+    """
+    Return a converted integer.
+
+    """
+    return int(val)
+
+
+def _str_check(val, param_obj=None):
+    """
+    Return a string object.
+
+    """
+    return str(val)
+
+
+def _bool_check(val, param_obj=None):
     """
     Return True or False depending on the boolean equivalent of the value.
 
@@ -165,7 +182,7 @@ def _bool_check(val):
     raise ParamError(str(val), "Cannot be translated to boolean value.")
 
 
-def _str_list_check(val):
+def _str_list_check(val, param_obj=None):
     """
     Return a list, if the value string is properly formatted and can
     be translated to a list.
@@ -187,7 +204,7 @@ def _str_list_check(val):
     except:
         raise ParamError(str(val), "Malformed list format.")
 
-def _str_dict_check(val):
+def _str_dict_check(val, param_obj=None):
     """
     Return a dict, if the value string is properly formatted and can be
     translated to a dict.
@@ -200,6 +217,13 @@ def _str_dict_check(val):
 
     If the value is already a dict, just return that.
 
+    Understands a 'default_key': If the value does not conform to the usual
+    dictionary style then this will check if a default_key was defined. If so,
+    it creates a dictionary with a single key (the default key) and the whole
+    value as the value of the key. This allows the easy specification of
+    dictionaries where most of the time just a specific, single value is
+    required.
+
     Raises exception if problems.
 
     """
@@ -207,16 +231,33 @@ def _str_dict_check(val):
         return val
     val = val.strip()
     if val[0] != "{" or val[-1] != "}":
-        raise ParamError(str(val), "Malformed dict format: "
-                                   "Need to be enclosed in { }.")
+        # If no default_key is defined, we can't proceed...
+        if param_obj and param_obj.default_key is None:
+            raise ParamError(str(val), "Malformed dict format: "
+                                       "Need to be enclosed in { }.")
+        is_dict = False
+    else:
+        is_dict = True
+
     try:
-        elems = [ e.strip() for e in val[1:-1].split(";") ]
+        if is_dict:
+            elems = [ e.strip() for e in val[1:-1].split(";") ]
+        else:
+            # Not dict-formatted, but a default key was defined, so we can take
+            # the whole value as the single value...
+            elems = [ val ]
         d = dict()
         for e in elems:
             e = e.strip()
             if e:
-                name, val = e.split(":")
-                name = name.strip()
+                if is_dict:
+                    name, val = e.split(":")
+                    name = name.strip()
+                else:
+                    # ... and specify the default key as the only dict key
+                    if param_obj and param_obj.default_key:
+                        name = param_obj.default_key
+                        val = e
                 val = val.strip()
                 if "," in val:
                     try:
@@ -228,7 +269,6 @@ def _str_dict_check(val):
         return d
     except:
         raise ParamError(str(val), "Malformed dict format.")
-
 
 
 class ParamError(Exception):
@@ -260,15 +300,17 @@ class _Param(object):
 
     """
     PARAM_TYPE_CHECK_FUNCS = {
-        PARAM_TYPE_STR      : str,
-        PARAM_TYPE_INT      : int,
+        PARAM_TYPE_STR      : _str_check,
+        PARAM_TYPE_INT      : _int_check,
         PARAM_TYPE_BOOL     : _bool_check,
         PARAM_TYPE_STR_LIST : _str_list_check,
         PARAM_TYPE_STR_DICT : _str_dict_check
     }
 
     def __init__(self, name, default=None, allowed_values=None,
-                 allowed_range=None, param_type=PARAM_TYPE_STR,
+                 allowed_range=None, allowed_keys=None, mandatory_keys=None,
+                 default_key=None,
+                 param_type=PARAM_TYPE_STR,
                  conffile=None, cmd_line=None, ignore=False,
                  doc_spec=None):
         """
@@ -285,6 +327,16 @@ class _Param(object):
         - allowed_range:    A dict with a 'min' and 'max' value. The assigned
                             value needs to be within this range. Leave as None
                             if no such range should be checked against.
+        - allowed_keys:     For DICT types, this lists the allowable key
+                            values.
+        - mandatory_keys:   For DICT types, this lists the keys that absolutely
+                            have to be present.
+        - default_key:      For DICT types, this sets the default key. If a
+                            non-dict is specified as value, then this value is
+                            placed into a dictionary with this default key as
+                            value. This allows easy specification of
+                            dictionaries where most of the time just a single
+                            value is required.
         - param_type:       Indicate the type of the parameter. This module
                             defines the possible types in PARAM_TYPE_STR,
                             PARAM_TYPE_INT and PARAM_TYPE_BOOL. It will be
@@ -335,6 +387,39 @@ class _Param(object):
                 raise ParamError(name,
                          "Allowed values or range not allowed for boolean.")
 
+        if (allowed_keys or mandatory_keys or default_key) and \
+                param_type != PARAM_TYPE_STR_DICT:
+            raise ParamError(name,
+                         "Allowed keys are only allowed for dictionaries.")
+        if param_type == PARAM_TYPE_STR_DICT:
+            if allowed_keys  and  type(allowed_keys) != list:
+                raise ParamError(name, "Allowed keys need to be a list.")
+            if mandatory_keys  and  type(mandatory_keys) != list:
+                raise ParamError(name, "Mandatory keys need to be a list.")
+            # Sanity check allowed and mandatory keys for dictionaries
+            if mandatory_keys and allowed_keys:
+                for k in mandatory_keys:
+                    if k not in allowed_keys:
+                        raise ParamError(name,
+                                         "Mandatory key '%s' not an allowed "
+                                         "key." % k)
+            if (default_key and allowed_keys) and \
+                    (default_key not in allowed_keys):
+                raise ParamError(name,
+                                 "Default key '%s' not an allowed key." %
+                                 default_key)
+            if default_key and mandatory_keys and \
+                    (len(mandatory_keys) > 1 or \
+                     default_key not in mandatory_keys):
+                raise ParamError(name,
+                                 "The default key must be in mandatory keys "
+                                 "and no additional mandatory keys are "
+                                 "allowed")
+
+        self.allowed_keys   = allowed_keys
+        self.mandatory_keys = mandatory_keys
+        self.default_key    = default_key
+
         # Type check all values in 'allowed-values' list
         if allowed_values:
             if param_type == PARAM_TYPE_STR_LIST:
@@ -345,8 +430,8 @@ class _Param(object):
                 # converted to a string.
                 self.allowed_values = [ str(a) for a in allowed_values ]
             else:
-                self.allowed_values = [ self.param_type_check(a) for a in
-                                                               allowed_values ]
+                self.allowed_values = [ self.param_type_check(a)
+                                        for a in allowed_values ]
         else:
             self.allowed_values = None
 
@@ -355,7 +440,7 @@ class _Param(object):
             if len(allowed_range.keys()) != 2  or \
                     'min' not in allowed_range  or  'max' not in allowed_range:
                 raise ParamError(name,
-                                   "Malformed dictionary for 'allowed_range'.")
+                                 "Malformed dictionary for 'allowed_range'.")
             self.param_type_check(allowed_range['min'])
             self.param_type_check(allowed_range['max'])
             self.allowed_range = allowed_range
@@ -384,7 +469,8 @@ class _Param(object):
         """
         if value is not None:
             try:
-                return self.PARAM_TYPE_CHECK_FUNCS[self.param_type](value)
+                return self.PARAM_TYPE_CHECK_FUNCS[self.param_type](
+                    value, self)
             except:
                 raise ParamError(self.name,
                                  "Cannot convert '%s' to type '%s'." % \
@@ -426,6 +512,18 @@ class _Param(object):
                     raise ParamError(self.name,
                                      "'%s' is not in the allowed range."
                                                                      % v)
+        if self.param_type is PARAM_TYPE_STR_DICT:
+            if self.allowed_keys:
+                for k in value.keys():
+                    if k not in self.allowed_keys:
+                        raise ParamError(self.name,
+                                 "'%s' is not an allowable key value." % k)
+            if self.mandatory_keys:
+                for k in self.mandatory_keys:
+                    if k not in value.keys():
+                        raise ParamError(self.name,
+                                 "Mandatory key '%s' not present." % k)
+
         return value
 
     def make_getopts_str(self):
@@ -603,10 +701,10 @@ class Conf(object):
         for param_name, param_conf in param_dict.items():
             for k in param_conf.keys():
                 if k not in [ 'default', 'allowed_values', 'allowed_range',
+                              'allowed_keys', 'mandatory_keys', 'default_key',
                               'param_type', 'conffile', 'cmd_line', 'ignore',
                               'doc_spec']:
                     raise ParamError(k, "Invalid parameter config attribute.")
-
             self.add(name=param_name, **param_conf)
 
     def _parse_config_file(self, f, allow_unknown_params=None):
@@ -620,9 +718,10 @@ class Conf(object):
         if allow_unknown_params is None:
             allow_unknown_params = self.default_allow_unknown_params
 
-        in_dict = False
-        dict_completed = False
-        value   = ""
+        value = ""
+        in_continuation = False
+        continuation_chars = [ '{', ',', ';' ]
+
         for i, line in enumerate(f.readlines()):
             line = line.strip()
             # Strip off any comments...
@@ -633,44 +732,32 @@ class Conf(object):
                 continue
 
             line = line.replace("\t", " ")
-            if in_dict:
-                # Continuing the processing of a dict line. We can only be here
-                # if we already have a starting value from the previous line.
-                value += line
-                if line.endswith("}"):
-                    in_dict = False
-                    dict_completed = True
-                elif not (line.endswith(";")  or  line.endswith(",")):
-                    raise ParamError(
-                        "-Line %d" % (i+1),
-                        "Dict continuation line must end in ';' or ','.")
-                else:
-                    continue
 
-            if not (in_dict  or  dict_completed):
-                # Not in a dict continuation line
-
+            if not in_continuation:
+                # Brand new parameter, so we keep the parameter name
                 elems = line.split(" ", 1)
                 if len(elems) != 2:
                     raise ParamError("-Line %d" % (i+1),
-                                     "Malformed line. Should have exactly 2 "
-                                     "tokens")
+                                     "Malformed line. Should have two tokens")
                 param_name, value = elems
                 param_name = param_name.strip()
                 value = value.strip()
-                # Special processing for dicts: They can be defined over
-                # multiple lines, individual elements separated by a ';'.
-                # Therefore, if the value starts with a '{', we will look for
-                # the ending '}', allowing line splits if the line ends with
-                # ';'.
-                if value.startswith('{'):
-                    # We have the start of a dict
-                    in_dict = True
+                if value[-1] in continuation_chars:
+                    # If there is more to come for this parameter, we will skip
+                    # the parameter evaluation.
+                    in_continuation = True
                     continue
 
-            if dict_completed:
-                dict_completed = False
+            else:
+                value += line
+                if line[-1] not in continuation_chars:
+                    in_continuation = False
+                else:
+                    # If there is more to come for this parameter, we will skip
+                    # the parameter evaluation.
+                    continue
 
+            # Evaluate parameter
             try:
                 param = self.params_by_conffile_name[param_name]
                 self.set(param.name, value)
@@ -794,7 +881,9 @@ class Conf(object):
                 else:
                     self.set(param.name, a)
 
-    def add(self, name, default=None, allowed_values=None, allowed_range=None,
+    def add(self, name, default=None,
+            allowed_values=None, allowed_range=None, allowed_keys=None,
+            mandatory_keys=None, default_key=None,
             param_type=PARAM_TYPE_STR, conffile=__NOT_DEFINED__,
             cmd_line=__NOT_DEFINED__, ignore=False, doc_spec=None):
         """
@@ -845,7 +934,9 @@ class Conf(object):
                     self._all_long_opts_so_far.append(long_opt)
 
             self.params[name] = _Param(name, default, allowed_values,
-                                       allowed_range, param_type, conffile,
+                                       allowed_range, allowed_keys,
+                                       mandatory_keys, default_key,
+                                       param_type, conffile,
                                        cmd_line, ignore, doc_spec)
             if conffile:
                 self.params_by_conffile_name[conffile] = self.params[name]

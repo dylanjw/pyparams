@@ -51,6 +51,16 @@ CONF = pyparams.Conf(
         "lll" : {
             "default"        : "Peter,Tom,Sally,Alice,Bob",
             "param_type"     : pyparams.PARAM_TYPE_STR_LIST,
+        },
+        "ddd" : {
+            "default"        : { "aaa" : 123 },
+            "allowed_keys"   : [ "aaa", "bbb", "ccc" ],
+            "mandatory_keys" : [ "aaa" ],
+            "default_key"    : "aaa",
+            "param_type"     : pyparams.PARAM_TYPE_STR_DICT,
+            "conffile"       : None,
+            "doc_spec"       : { 'text'    : "A dictionary.",
+                                 'section' : "General" }
         }
     }
 )
@@ -107,6 +117,7 @@ print CONF.get("lll")
 if CONF.get("lll") != [ "", "x", "y", "" ]:
     print "@@@ ERROR! Should be list with four elements '', 'x', 'y', ''!"
 print
+print CONF.get("ddd")
 print "-----------------------------"
 
 #

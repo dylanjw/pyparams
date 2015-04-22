@@ -355,6 +355,8 @@ class ConfigClassTests(unittest.TestCase):
             "default"        : { 'baz' : 123 },
             "conffile"       : "MY_DICT",
             "param_type"     : PARAM_TYPE_STR_DICT,
+            "allowed_keys"   : [ "baz", "a", "foo", "bar" ],
+            "mandatory_keys" : [ "baz", ],
             "cmd_line"       : ( 'Q', None ),
             "doc_spec"       : { 'text'    : "A dict value.",
                                  'section' : "General",
@@ -657,16 +659,32 @@ class ConfigClassTests(unittest.TestCase):
                                 conf._process_cmd_line,
                                 [ "--some-param=blah", "-g", "--baz", "200" ])
 
+        # Testing with illegal dictionary key value
+        self.assertRaisesRegexp(ParamError,
+                                "Parameter 'ddd': 'yyy' is not an allowable "
+                                "key value.",
+                                conf._process_cmd_line,
+                                [ "--some-param=foobar", "-g", "--baz", "200",
+                                 "-Q", "{ yyy:123 ; baz:1, 2,3; a: X  Y Z }" ])
+
+        # Testing with missing mandatory key
+        self.assertRaisesRegexp(ParamError,
+                                "Parameter 'ddd': Mandatory key 'baz' "
+                                "not present.",
+                                conf._process_cmd_line,
+                                [ "--some-param=foobar", "-g", "--baz", "200",
+                                 "-Q", "{ foo:123 ; bar:1, 2,3; a: X  Y Z }" ])
+
         # Testing with correct value
         conf._process_cmd_line([ "--some-param=foobar", "-g", "--baz", "200",
-                                 "-Q", "{ foo:123 ; bar:1, 2,3; a: X  Y Z }" ])
+                                 "-Q", "{ foo:123 ; baz:1, 2,3; a: X  Y Z }" ])
         self.assertEqual('foobar', conf.get('foo'))
         self.assertEqual(200, conf.get('baz'))
         self.assertTrue(conf.get('ggg'))
         d = conf.get('ddd')
         self.assertEqual(len(d), 3)
         self.assertEqual(d['foo'], "123")
-        self.assertEqual(d['bar'], ["1", "2", "3"])
+        self.assertEqual(d['baz'], ["1", "2", "3"])
         self.assertEqual(d['a'], "X  Y Z")
 
     def test_conf_acquire(self):
