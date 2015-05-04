@@ -246,7 +246,7 @@ def _str_dict_check(val, param_obj=None):
             # Not dict-formatted, but a default key was defined, so we can take
             # the whole value as the single value...
             elems = [ val ]
-        d = dict()
+        d = {}
         for e in elems:
             e = e.strip()
             if e:
@@ -576,7 +576,7 @@ class _Param(object):
                 argname = "val"
 
         # Assemble the cmd-line option description
-        s = list()
+        s = []
         if self.cmd_line:
             short_opt, long_opt = self.cmd_line
             if short_opt:
@@ -635,7 +635,7 @@ class Conf(object):
     added later on.
 
     """
-    def __init__(self, param_dict=dict(), conf_file_parameter=None,
+    def __init__(self, param_dict=None, conf_file_parameter=None,
                  default_conf_file_locations=[ "", "~/", "/etc/" ],
                  default_env_prefix=None, default_allow_unset_values=False,
                  default_allow_unknown_params=False, doc_section_order=None):
@@ -644,7 +644,7 @@ class Conf(object):
 
         - param_dict:                  A dictionary containing the parameter
                                        definitions. The format of this
-                                       dictionary is show in this file's
+                                       dictionary is shown in this file's
                                        docstring and various sample programs
         - conf_file_parameter:         Name of the parameter with which a user
                                        can specify a configuration file.
@@ -684,8 +684,8 @@ class Conf(object):
                                        alphabetical order.
 
         """
-        self.params                       = dict()
-        self.params_by_conffile_name      = dict()
+        self.params                       = {}
+        self.params_by_conffile_name      = {}
         self.default_allow_unset_values   = default_allow_unset_values
         self.default_allow_unknown_params = default_allow_unknown_params
         self.conf_file_parameter          = conf_file_parameter
@@ -695,17 +695,19 @@ class Conf(object):
         self.default_env_prefix           = default_env_prefix or ""
         self.doc_section_order            = doc_section_order
 
-        self._all_short_opts_so_far       = list()
-        self._all_long_opts_so_far        = list()
+        self._all_short_opts_so_far       = []
+        self._all_long_opts_so_far        = []
 
-        for param_name, param_conf in param_dict.items():
-            for k in param_conf.keys():
-                if k not in [ 'default', 'allowed_values', 'allowed_range',
-                              'allowed_keys', 'mandatory_keys', 'default_key',
-                              'param_type', 'conffile', 'cmd_line', 'ignore',
-                              'doc_spec']:
-                    raise ParamError(k, "Invalid parameter config attribute.")
-            self.add(name=param_name, **param_conf)
+        if param_dict is not None:
+            for param_name, param_conf in param_dict.items():
+                for k in param_conf.keys():
+                    if k not in [ 'default', 'allowed_values', 'allowed_range',
+                                  'allowed_keys', 'mandatory_keys',
+                                  'default_key', 'param_type', 'conffile',
+                                  'cmd_line', 'ignore', 'doc_spec']:
+                        raise ParamError(
+                            k, "Invalid parameter config attribute.")
+                self.add(name=param_name, **param_conf)
 
     def _parse_config_file(self, f, allow_unknown_params=None):
         """
@@ -846,9 +848,9 @@ class Conf(object):
 
         """
         # Create short option string
-        short_opts_list = list()
-        long_opts_list  = list()
-        param_opt_lookup = dict()
+        short_opts_list  = []
+        long_opts_list   = []
+        param_opt_lookup = {}
 
         for pname, param in self.params.items():
             short_str, long_str = param.make_getopts_str()
@@ -1081,14 +1083,14 @@ class Conf(object):
 
         """
         istr     = indent*" "
-        sections = dict()
-        out      = list()
+        sections = {}
+        out      = []
 
         # Assemble the parameter lists for each section.
         for pname, param in self.params.items():
             sec, txt = param.doc()
             if txt:
-                sections.setdefault(sec, list()).append(txt)
+                sections.setdefault(sec, []).append(txt)
 
         # Alphabetically sort the list of parameters in each section.
         # Ignore case. Each parameter's documentation is a single test blob by
