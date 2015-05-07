@@ -63,7 +63,10 @@ CONF = Conf(
     #                   default defined).
     # - allowed_values: A list of pemissible values for this parameter.
     # - allowed_range:  A dictionary containing a min and max value for the
-    #                   parameter.
+    #                   parameter. You can leave this None if you do not wish
+    #                   specify a range. Or you can just leave either 'min' or
+    #                   'max' set to None, to indicate that there is no lower
+    #                   or upper bound.
     # - conffile:       The name of the parameter in the configuration file.
     #                   This is also used to construct the name as environment
     #                   variable, by pre-pending the env-prefix to this name.

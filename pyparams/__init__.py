@@ -326,7 +326,9 @@ class _Param(object):
                             against.
         - allowed_range:    A dict with a 'min' and 'max' value. The assigned
                             value needs to be within this range. Leave as None
-                            if no such range should be checked against.
+                            if no such range should be checked against. You may
+                            also define either 'min' or 'max' as None, to
+                            indicate that there is no upper or lower bound.
         - allowed_keys:     For DICT types, this lists the allowable key
                             values.
         - mandatory_keys:   For DICT types, this lists the keys that absolutely
@@ -441,8 +443,12 @@ class _Param(object):
                     'min' not in allowed_range  or  'max' not in allowed_range:
                 raise ParamError(name,
                                  "Malformed dictionary for 'allowed_range'.")
-            self.param_type_check(allowed_range['min'])
-            self.param_type_check(allowed_range['max'])
+            # The min or max in an allowed range can be None, indicating no
+            # upper or lower bound.
+            if allowed_range['min'] is not None:
+                self.param_type_check(allowed_range['min'])
+            if allowed_range['max'] is not None:
+                self.param_type_check(allowed_range['max'])
             self.allowed_range = allowed_range
         else:
             self.allowed_range = None
@@ -507,8 +513,10 @@ class _Param(object):
                                      "'%s' is not one of the allowed values."
                                                                     % v)
             if self.allowed_range:
-                if not ( self.allowed_range['min'] \
-                                <= v <= self.allowed_range['max'] ):
+                min_val = self.allowed_range['min']
+                max_val = self.allowed_range['max']
+                if (min_val is not None and v < min_val) or \
+                        (max_val is not None and v > max_val):
                     raise ParamError(self.name,
                                      "'%s' is not in the allowed range."
                                                                      % v)
