@@ -134,15 +134,19 @@ import textwrap
 # line or via the command file. Also set any defaults, if applicable.
 #
 
-PARAM_TYPE_STR         = "string"
-PARAM_TYPE_INT         = "integer"
-PARAM_TYPE_BOOL        = "bool"
-PARAM_TYPE_STR_LIST    = "str-list"
-PARAM_TYPE_STR_DICT    = "str-dict"
-_PARAM_TYPES_ALLOWED   = [ PARAM_TYPE_STR, PARAM_TYPE_INT, PARAM_TYPE_BOOL,
-                           PARAM_TYPE_STR_LIST, PARAM_TYPE_STR_DICT ]
+PARAM_TYPE_STR          = "string"
+PARAM_TYPE_INT          = "integer"
+PARAM_TYPE_BOOL         = "bool"
+PARAM_TYPE_STR_LIST     = "str-list"
+PARAM_TYPE_STR_DICT     = "str-dict"
+_PARAM_TYPES_ALLOWED    = [ PARAM_TYPE_STR, PARAM_TYPE_INT, PARAM_TYPE_BOOL,
+                            PARAM_TYPE_STR_LIST, PARAM_TYPE_STR_DICT ]
 
-__NOT_DEFINED__        = "__NOT_DEFINED__"
+__NOT_DEFINED__         = "__NOT_DEFINED__"
+
+# Use this as default value, if you want to allow a value-parameter to be
+# purely optional, without any default value.
+IGNORE_IF_NOT_SPECIFIED = "__IGNORE_IF_NOT_SPECIFIED__"
 
 
 def _int_check(val, param_obj=None):
@@ -319,7 +323,10 @@ class _Param(object):
         - name:             The name of the parameter, which can be used for
                             get()/set().
         - default:          The default value for this parameter. If this is
-                            set to None, then no default value is set.
+                            set to None, then no default value is set and the
+                            parameter value has to be specified. If this is set
+                            to IGNORE_IF_NOT_SPECIFIED then the parameter can
+                            be omitted.
         - allowed_values:   A list of permissible values. When a value is set,
                             it is checked that it is contained in this list.
                             Leave as None if no such list should be checked
@@ -473,7 +480,7 @@ class _Param(object):
         possible.
 
         """
-        if value is not None:
+        if value not in [ None, IGNORE_IF_NOT_SPECIFIED ]:
             try:
                 return self.PARAM_TYPE_CHECK_FUNCS[self.param_type](
                     value, self)
@@ -481,7 +488,8 @@ class _Param(object):
                 raise ParamError(self.name,
                                  "Cannot convert '%s' to type '%s'." % \
                                                     (value, self.param_type))
-        return None
+        else:
+            return value
 
     def validate(self, value):
         """

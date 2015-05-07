@@ -59,8 +59,18 @@ CONF = Conf(
     # key in the dictionary) as well as a specification dictionary. The spec
     # dictionary can contain the following values (some are optional):
     #
-    # - default:        The default value for the parameter, or None (no
-    #                   default defined).
+    # - default:        The default value for the parameter, to be used if the
+    #                   user doesn't specify a value. There are two special
+    #                   default values:
+    #                   - None: No default is defined and the value has to be
+    #                     set by the user.
+    #                   - IGNORE_IF_NOT_SPECIFIED: This symbol is defined here
+    #                     in the pyparams modules. If this is set as default,
+    #                     independent of parameter type, then the parameter
+    #                     is ignored if it is not specified by the user. The
+    #                     calling program may choose to deal with this in any
+    #                     way it sees fit. Finding this value indicates that
+    #                     the user simply didn't specify this parameter.
     # - allowed_values: A list of pemissible values for this parameter.
     # - allowed_range:  A dictionary containing a min and max value for the
     #                   parameter. You can leave this None if you do not wish
