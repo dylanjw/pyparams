@@ -654,7 +654,9 @@ class Conf(object):
     def __init__(self, param_dict=None, conf_file_parameter=None,
                  default_conf_file_locations=[ "", "~/", "/etc/" ],
                  default_env_prefix=None, default_allow_unset_values=False,
-                 default_allow_unknown_params=False, doc_section_order=None):
+                 default_allow_unknown_params=False,
+                 ignore_config_file_params=[],
+                 doc_section_order=None):
         """
         Initialize the configuration object.
 
@@ -691,6 +693,13 @@ class Conf(object):
                                        'Unknown parameter' exception will be
                                        raised. By default, unknown parameters
                                        are not accepted.
+        - ignore_config_file_params:   List of parameters, which may appear in
+                                       the config file and will be ignored.
+                                       This is effectively a more specific
+                                       version of default_allow_unknown_params.
+                                       The full name of the parameters as they
+                                       would appear in the config file needs to
+                                       be specified.
         - doc_section_order:           Define the order in which the various
                                        sections of your parameter docs are
                                        printed when calling make_docs().
@@ -704,6 +713,7 @@ class Conf(object):
         self.params_by_conffile_name      = {}
         self.default_allow_unset_values   = default_allow_unset_values
         self.default_allow_unknown_params = default_allow_unknown_params
+        self.ignore_config_file_params    = ignore_config_file_params
         self.conf_file_parameter          = conf_file_parameter
         self.default_conf_file_locations  = \
             [ (l if (l == "" or l.endswith("/")) else l+"/") \
@@ -784,7 +794,8 @@ class Conf(object):
             except ParamError as e:
                 raise ParamError("-Line %d" % (i+1), e.message)
             except KeyError as e:
-                if not allow_unknown_params:
+                if not allow_unknown_params and \
+                        param_name not in self.ignore_config_file_params:
                     raise ParamError("-Line %d" % (i+1),
                                      "Unknown parameter '%s'." % param_name)
                 else:
