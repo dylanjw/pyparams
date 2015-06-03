@@ -515,6 +515,9 @@ class _Param(object):
             value_list = [ value ]
 
         for v in value_list:
+            if v == IGNORE_IF_NOT_SPECIFIED:
+                continue
+
             if self.allowed_values:
                 if not v in self.allowed_values:
                     raise ParamError(self.name,
