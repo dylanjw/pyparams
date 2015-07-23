@@ -632,7 +632,12 @@ class _Param(object):
                 else:
                     s.append("\n")
                 if self.default:
-                    s.append("    Default value: %s\n" % self.default)
+                    if self.default == IGNORE_IF_NOT_SPECIFIED:
+                        s.append(
+                            "    Default value: Ignored if not specified.\n")
+                    else:
+                        s.append(
+                            "    Default value: %s\n" % self.default)
                 if self.conffile:
                     s.append("    Conf file equivalent: %s\n" % self.conffile)
 
