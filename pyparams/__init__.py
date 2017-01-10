@@ -128,6 +128,8 @@ import os
 import sys
 import getopt
 import textwrap
+import json
+from ruamel import yaml as yaml
 
 #
 # Define all the configuration variables, which can be specified on the command
@@ -290,6 +292,9 @@ class ParamError(Exception):
             msg = "Parameter '%s': %s" % (name, msg)
         super(ParamError, self).__init__(msg)
 
+class FileFormatException(Exception):
+    def __init__(self,*args,**kwargs):
+        Exception.__init__(self,*args,**kwargs)
 
 class ParamIgnored(ParamError):
     pass
@@ -743,7 +748,7 @@ class Conf(object):
                             k, "Invalid parameter config attribute.")
                 self.add(name=param_name, **param_conf)
 
-    def _parse_config_file(self, f, allow_unknown_params=None):
+    def _parse_default_format_config_file(self, f, allow_unknown_params=None):
         """
         Read through the config file and set con values.
 
@@ -808,6 +813,86 @@ class Conf(object):
                                      "Unknown parameter '%s'." % param_name)
                 else:
                     pass
+
+    def _parse_yml_format_config_file(self, f, allow_unknown_params=None):
+        ""
+        """
+        Read through the config file and set con values.
+
+        In config files dictionaries can stretch over multiple lines, breaking
+        either behind '{' or behind ';' or behind ',' within a list value.
+
+        """
+        if allow_unknown_params is None:
+            allow_unknown_params = self.default_allow_unknown_params
+        try:
+          yamlo = yaml.load(f)
+        except:
+          raise FileFormatException
+        if type(yamlo)  != 'dict':
+            raise FileFormatException('Incorrect json.  File must contain a json list of key,values')
+        for key, value in yamlo.items():
+            try:
+                param = self.params_by_conffile_name[key]
+                self.set(param.name, value)
+            except ParamIgnored:
+                pass
+            except ParamError as e:
+                raise ParamError("-Line %d" % (i+1), e.message)
+            except KeyError as e:
+                if not allow_unknown_params and \
+                        param_name not in self.ignore_config_file_params:
+                    raise ParamError("-Line %d" % (i+1),
+                                     "Unknown parameter '%s'." % param_name)
+                else:
+                    pass
+
+    def _parse_json_format_config_file(self, f, allow_unknown_params=None):
+        """
+        Read through the config file and set con values.
+
+        In config files dictionaries can stretch over multiple lines, breaking
+        either behind '{' or behind ';' or behind ',' within a list value.
+
+        """
+        if allow_unknown_params is None:
+            allow_unknown_params = self.default_allow_unknown_params
+        try:
+          jso = json.load(f)
+        except:
+          raise FileFormatException
+        if type(jso)  != 'dict':
+            raise FileFormatException('Incorrect json.  File must contain a json list of key,values')
+        for key, value in jso.items():
+            try:
+                param = self.params_by_conffile_name[key]
+                self.set(param.name, value)
+            except ParamIgnored:
+                pass
+            except ParamError as e:
+                raise ParamError("-Line %d" % (i+1), e.message)
+            except KeyError as e:
+                if not allow_unknown_params and \
+                        param_name not in self.ignore_config_file_params:
+                    raise ParamError("-Line %d" % (i+1),
+                                     "Unknown parameter '%s'." % param_name)
+                else:
+                    pass
+
+    def _parse_config_file(self, f, allow_unknown_params=None):
+        try:
+            parsed_cfg_file = self._parse_yml_format_config_file(f, allow_unknown_params=allow_unknown_params)
+        except FileFormatException:
+            pass
+        try:
+            parsed_cfg_file = self._parse_json_format_config_file(f, allow_unknown_params=allow_unknown_params)
+        except FileFormatException:
+            pass
+        try:
+            parsed_cfg_file = self._parse_default_format_config_file(f, allow_unknown_params=allow_unknown_params)
+        except FileFormatException:
+            print("FileFormatError")
+        return parsed_cfg_file
 
     def _process_config_file(self, fname, allow_unknown_params):
         """
