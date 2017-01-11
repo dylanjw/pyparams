@@ -29,7 +29,7 @@ setup(name='pyparams',
       url='https://github.com/jbrendel/pyparams',
       packages=['pyparams'],
       long_description=long_description(),
-      install_requires=['ruamen.yaml','json'],
+      install_requires=['ruamel.yaml','json'],
       classifiers=[
                    'License :: OSI Approved :: Apache License',
                    'Intended Audience :: Developers',
