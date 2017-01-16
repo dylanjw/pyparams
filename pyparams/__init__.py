@@ -826,7 +826,7 @@ class Conf(object):
         if allow_unknown_params is None:
             allow_unknown_params = self.default_allow_unknown_params
         try:
-          yamlo = yaml.load(f)
+          yamlo = yaml.safe_load(f)
         except:
           raise FileFormatException
         if type(yamlo)  != 'dict':
