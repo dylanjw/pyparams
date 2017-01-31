@@ -2,8 +2,8 @@
 """Setup file for easy installation"""
 from setuptools import setup
 
-version = (0, 1, 0)
-__version__ = '.'.join(map(str, version))
+v = (0, 1, 0)
+version = '.'.join(map(str, v))
 
 LONG_DESCRIPTION = """
 pyparams is a module for the processing of program parameters
